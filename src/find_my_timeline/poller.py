@@ -129,8 +129,14 @@ class LocationPoller:
 
         return recorded
 
-    def start(self, setup_signals: bool = True) -> None:
-        """Start the polling loop. Blocks until stopped."""
+    def start(self, setup_signals: bool = True, allow_2fa: bool = False) -> None:
+        """Start the polling loop. Blocks until stopped.
+
+        Args:
+            setup_signals: Whether to set up signal handlers (only works in main thread)
+            allow_2fa: If False (default), refuses to prompt for 2FA interactively.
+                      This prevents lockouts in non-interactive contexts like Docker.
+        """
         self._running = True
 
         # Set up signal handlers for graceful shutdown (only in main thread)
@@ -150,9 +156,9 @@ class LocationPoller:
             f"Starting location poller (interval: {self.min_interval}-{self.max_interval} minutes)"
         )
 
-        # Authenticate
+        # Authenticate (don't allow 2FA by default to prevent lockouts in Docker)
         try:
-            self.auth.authenticate()
+            self.auth.authenticate(allow_2fa=allow_2fa)
             logger.info("Authentication successful")
         except AuthenticationError as e:
             logger.error(f"Authentication failed: {e}")

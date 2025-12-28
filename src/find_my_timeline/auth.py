@@ -15,8 +15,21 @@ class ICloudAuth:
         self._cookie_dir = Path.home() / ".find-my-timeline"
         self._cookie_dir.mkdir(exist_ok=True)
 
-    def authenticate(self) -> PyiCloudService:
-        """Authenticate with iCloud. Returns the API instance."""
+    def has_valid_session(self) -> bool:
+        """Check if valid session cookies exist (without triggering 2FA)."""
+        # Session files are named after username with special chars removed
+        username_clean = self.username.replace("@", "").replace(".", "")
+        session_file = self._cookie_dir / f"{username_clean}.session"
+        cookie_file = self._cookie_dir / f"{username_clean}.cookiejar"
+        return session_file.exists() and cookie_file.exists()
+
+    def authenticate(self, allow_2fa: bool = True) -> PyiCloudService:
+        """Authenticate with iCloud. Returns the API instance.
+
+        Args:
+            allow_2fa: If False, raises an error instead of prompting for 2FA.
+                      Use this for non-interactive contexts like Docker.
+        """
         try:
             self.api = PyiCloudService(
                 self.username,
@@ -27,8 +40,18 @@ class ICloudAuth:
             raise AuthenticationError(f"Failed to login to iCloud: {e}") from e
 
         if self.api.requires_2fa:
+            if not allow_2fa:
+                raise AuthenticationError(
+                    "2FA required but not allowed in non-interactive mode. "
+                    "Run 'find-my-timeline auth' interactively first to create a session."
+                )
             self._handle_2fa()
         elif self.api.requires_2sa:
+            if not allow_2fa:
+                raise AuthenticationError(
+                    "2SA required but not allowed in non-interactive mode. "
+                    "Run 'find-my-timeline auth' interactively first to create a session."
+                )
             self._handle_2sa()
 
         return self.api
