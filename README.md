@@ -4,6 +4,7 @@ Track historical location data from your Apple devices using the Find My service
 
 ![Preview](preview.png)
 ![Preview Detail](preview2.png)
+![Preview Timeline](preview3.png)
 
 Apple's Find My only shows current device locations. This tool polls your devices at random intervals and stores the history in a local database, letting you view location timelines on a map.
 
