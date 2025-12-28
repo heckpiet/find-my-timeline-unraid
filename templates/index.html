@@ -189,6 +189,135 @@
             border-radius: 50%;
             box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
         }
+
+        #timeline-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            max-height: calc(100vh - 40px);
+            background: #1a1a2e;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        #timeline-panel.visible {
+            display: flex;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .timeline-header h2 {
+            font-size: 1rem;
+            color: #fff;
+            margin: 0;
+        }
+
+        #timeline-close {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 5px;
+            line-height: 1;
+        }
+
+        #timeline-close:hover {
+            color: #fff;
+        }
+
+        .timeline-summary {
+            padding: 12px 20px;
+            background: #16213e;
+            font-size: 0.85rem;
+            color: #aaa;
+            border-bottom: 1px solid #333;
+        }
+
+        .timeline-summary span {
+            color: #00d9ff;
+            font-weight: 500;
+        }
+
+        .timeline-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .timeline-item:hover {
+            background: #16213e;
+        }
+
+        .timeline-item.active {
+            background: #0f3460;
+            border-left: 3px solid #00d9ff;
+        }
+
+        .timeline-item.latest {
+            border-left: 3px solid #00ff88;
+        }
+
+        .timeline-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00d9ff;
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+
+        .timeline-item.latest .timeline-dot {
+            background: #00ff88;
+            box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+        }
+
+        .timeline-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .timeline-time {
+            font-size: 0.9rem;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .timeline-details {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .timeline-details span {
+            margin-right: 10px;
+        }
+
+        .timeline-battery {
+            font-size: 0.8rem;
+            color: #888;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -230,6 +359,15 @@
 
     <div id="map"></div>
 
+    <div id="timeline-panel">
+        <div class="timeline-header">
+            <h2><span id="timeline-device-name">Device Timeline</span></h2>
+            <button id="timeline-close">&times;</button>
+        </div>
+        <div class="timeline-summary" id="timeline-summary"></div>
+        <div class="timeline-list" id="timeline-list"></div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Initialize map
@@ -240,8 +378,11 @@
         }).addTo(map);
 
         let markers = [];
+        let markersById = {};
         let polylines = [];
         let selectedDevice = null;
+        let selectedLocationId = null;
+        let currentLocations = [];
 
         // Device icons
         const deviceIcons = {
@@ -302,9 +443,16 @@
                 container.querySelectorAll('.device').forEach(el => {
                     el.addEventListener('click', () => {
                         const id = el.dataset.id;
-                        selectedDevice = selectedDevice === id ? null : id;
+                        if (selectedDevice === id) {
+                            selectedDevice = null;
+                            hideTimelinePanel();
+                        } else {
+                            selectedDevice = id;
+                        }
+                        selectedLocationId = null;
                         loadDevices();
                         loadLocations();
+                        loadStats();
                     });
                 });
             } catch (error) {
@@ -317,7 +465,9 @@
             markers.forEach(m => map.removeLayer(m));
             polylines.forEach(p => map.removeLayer(p));
             markers = [];
+            markersById = {};
             polylines = [];
+            currentLocations = [];
 
             const hours = document.getElementById('time-range').value;
             let url = '/api/locations?limit=5000';
@@ -335,6 +485,7 @@
                 const locations = await response.json();
 
                 if (locations.length === 0) {
+                    hideTimelinePanel();
                     return;
                 }
 
@@ -351,7 +502,7 @@
                 let colorIndex = 0;
                 const bounds = [];
 
-                for (const [deviceId, deviceLocations] of Object.entries(byDevice)) {
+                for (const [, deviceLocations] of Object.entries(byDevice)) {
                     const color = colors[colorIndex % colors.length];
                     colorIndex++;
 
@@ -394,13 +545,26 @@
                         `);
 
                         markers.push(marker);
+                        markersById[loc.id] = marker;
                         bounds.push([loc.latitude, loc.longitude]);
                     });
+
+                    // Store for timeline if this is the selected device
+                    if (selectedDevice) {
+                        currentLocations = deviceLocations;
+                    }
                 }
 
                 // Fit map to bounds
                 if (bounds.length > 0) {
                     map.fitBounds(bounds, { padding: [50, 50] });
+                }
+
+                // Update timeline panel if device is selected
+                if (selectedDevice && currentLocations.length > 0) {
+                    updateTimelinePanel();
+                } else {
+                    hideTimelinePanel();
                 }
 
             } catch (error) {
@@ -417,9 +581,83 @@
                     <p><span>${stats.total_devices}</span> devices tracked</p>
                     <p><span>${stats.total_locations.toLocaleString()}</span> locations recorded</p>
                 `;
+
             } catch (error) {
                 console.error('Failed to load stats:', error);
             }
+        }
+
+        function updateTimelinePanel() {
+            const panel = document.getElementById('timeline-panel');
+            const deviceName = document.getElementById('timeline-device-name');
+            const summary = document.getElementById('timeline-summary');
+            const list = document.getElementById('timeline-list');
+
+            // Sort locations newest first for the list
+            const sortedLocations = [...currentLocations].reverse();
+
+            // Find device name from the first location
+            const firstLoc = sortedLocations[0];
+            deviceName.textContent = `${getDeviceIcon(firstLoc.device_id)} Timeline`;
+
+            summary.innerHTML = `<span>${sortedLocations.length}</span> data points in selected time range`;
+
+            list.innerHTML = sortedLocations.map((loc, index) => {
+                const isLatest = index === 0;
+                const isActive = selectedLocationId === loc.id;
+                const date = new Date(loc.timestamp);
+                const timeStr = date.toLocaleTimeString();
+                const dateStr = date.toLocaleDateString();
+
+                let accuracyStr = '';
+                if (loc.horizontal_accuracy) {
+                    accuracyStr = loc.horizontal_accuracy.toFixed(0) + 'm';
+                }
+
+                return `
+                    <div class="timeline-item ${isLatest ? 'latest' : ''} ${isActive ? 'active' : ''}"
+                         data-id="${loc.id}"
+                         data-lat="${loc.latitude}"
+                         data-lng="${loc.longitude}">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-time">${timeStr}</div>
+                            <div class="timeline-details">
+                                <span>${dateStr}</span>
+                                <span>${loc.position_type || ''}</span>
+                                <span>${accuracyStr}</span>
+                            </div>
+                        </div>
+                        ${loc.battery_level ? `<div class="timeline-battery">${formatBattery(loc.battery_level)}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers to timeline items
+            list.querySelectorAll('.timeline-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const id = parseInt(item.dataset.id);
+                    const lat = parseFloat(item.dataset.lat);
+                    const lng = parseFloat(item.dataset.lng);
+
+                    // Update selection
+                    selectedLocationId = id;
+                    list.querySelectorAll('.timeline-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+
+                    // Pan to location and open popup
+                    map.setView([lat, lng], 16);
+                    if (markersById[id]) {
+                        markersById[id].openPopup();
+                    }
+                });
+            });
+
+            panel.classList.add('visible');
+        }
+
+        function hideTimelinePanel() {
+            document.getElementById('timeline-panel').classList.remove('visible');
         }
 
         // Event listeners
@@ -430,6 +668,14 @@
         });
 
         document.getElementById('time-range').addEventListener('change', loadLocations);
+
+        document.getElementById('timeline-close').addEventListener('click', () => {
+            selectedDevice = null;
+            selectedLocationId = null;
+            hideTimelinePanel();
+            loadDevices();
+            loadLocations();
+        });
 
         // Initial load
         loadDevices();
