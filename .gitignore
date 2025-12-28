@@ -3,8 +3,9 @@
 *.pem
 *.key
 
-# Database
+# Database and session
 data/
+session/
 *.db
 
 # Python

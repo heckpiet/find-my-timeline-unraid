@@ -1,0 +1,13 @@
+services:
+  find-my-timeline:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./session:/root/.find-my-timeline
+    env_file:
+      - .env
+    environment:
+      - WEB_HOST=0.0.0.0
+    restart: unless-stopped

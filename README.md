@@ -48,3 +48,29 @@ Set in `.env` or pass as CLI options:
 - `POLL_MAX_INTERVAL` - Maximum poll interval in minutes (default: 10)
 - `DATABASE_PATH` - SQLite database path (default: ./data/locations.db)
 - `WEB_HOST` / `WEB_PORT` - Web server binding (default: 127.0.0.1:5000)
+
+## Docker
+
+### First-time setup (interactive 2FA required)
+
+```bash
+cp .env.example .env
+# Edit .env with your Apple ID
+
+mkdir -p session data
+docker compose run --rm find-my-timeline find-my-timeline auth
+# Enter 2FA code when prompted
+```
+
+### Run
+
+```bash
+docker compose up -d
+# Open http://localhost:5000
+```
+
+### Re-authenticate (when session expires, ~90 days)
+
+```bash
+docker compose run --rm find-my-timeline find-my-timeline auth
+```
