@@ -37,6 +37,16 @@ class ICloudAuth:
                 cookie_directory=str(self._cookie_dir),
             )
         except PyiCloudFailedLoginException as e:
+            error_msg = str(e)
+            if "503" in error_msg or "srp" in error_msg.lower():
+                raise AuthenticationError(
+                    f"Failed to login to iCloud: {e}\n\n"
+                    "This often happens when Apple blocks the server's IP address.\n"
+                    "To fix this, authenticate locally and copy session files:\n"
+                    f"  1. Run 'find-my-timeline auth' on your local machine\n"
+                    f"  2. Copy ~/.find-my-timeline/* to the Docker volume\n"
+                    f"  3. Restart the container"
+                ) from e
             raise AuthenticationError(f"Failed to login to iCloud: {e}") from e
 
         if self.api.requires_2fa:
