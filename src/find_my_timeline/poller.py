@@ -64,11 +64,6 @@ class LocationPoller:
                 logger.warning(f"No location available for device {device['name']}")
                 continue
 
-            # Skip if location is marked as old/stale
-            if location.get("isOld", False):
-                logger.info(f"Skipping stale location for {device['name']}")
-                continue
-
             latitude = location.get("latitude")
             longitude = location.get("longitude")
 
@@ -80,6 +75,10 @@ class LocationPoller:
             timestamp_ms = location.get("timeStamp")
             if timestamp_ms:
                 timestamp = datetime.fromtimestamp(timestamp_ms / 1000)
+            elif location.get("isOld", False):
+                # Skip if location is marked as old/stale and no timestamp
+                logger.info(f"Skipping stale location for {device['name']}")
+                continue
             else:
                 timestamp = datetime.now()
 
