@@ -7,19 +7,19 @@
   <Privileged>false</Privileged>
   <Icon>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/icon.svg</Icon>
   <WebUI>http://[IP]:[PORT:5000]/</WebUI>
-  <Overview>Self-hosted history and map view for devices available through Apple's Find My service. Stores location history locally in SQLite and includes an optional protected WebUI flow for Apple two-factor re-authentication.</Overview>
+  <Overview>Self-hosted Apple Find My location history for Unraid with a responsive dashboard, interactive route map, device cards, exact date and time filtering, chronological timeline, local SQLite storage and optional protected Apple two-factor re-authentication.</Overview>
   <Support>https://github.com/heckpiet/find-my-timeline-unraid/issues</Support>
   <Project>https://github.com/heckpiet/find-my-timeline-unraid</Project>
   <TemplateURL>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/templates/find-my-timeline.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/README.md</ReadMe>
   <Category>Tools:Utilities</Category>
-  <ExtraSearchTerms>Apple Find My location history timeline iCloud tracking map GPS AirTag</ExtraSearchTerms>
+  <ExtraSearchTerms>Apple Find My location history timeline iCloud tracking map GPS responsive dashboard mobile</ExtraSearchTerms>
   <Requires>Apple ID with two-factor authentication and internet access. The WebUI exposes sensitive location history and must not be published directly to the internet. Use a trusted network, VPN or authenticated HTTPS reverse proxy.</Requires>
-  <Changes>Added Apple authentication status, estimated session expiry countdown, optional WebUI re-authentication, security controls and expanded documentation.</Changes>
+  <Changes>Introduced the responsive WebUI 2.0 dashboard with desktop and mobile navigation, status metrics, improved device cards, exact date/time search, a dedicated timeline view and a modernized map experience. Apple session status and protected WebUI re-authentication remain integrated.</Changes>
   <Date>2026-07-25</Date>
   <MinVer>6.12.0</MinVer>
   <License>MIT</License>
-  <Config Name="WebUI" Target="5000" Default="5000" Mode="tcp" Description="HTTP port for the WebUI. Do not expose directly to the internet." Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="WebUI" Target="5000" Default="5000" Mode="tcp" Description="HTTP port for the responsive WebUI. Do not expose directly to the internet." Type="Port" Display="always" Required="true" Mask="false"/>
   <Config Name="Database" Target="/app/data" Default="/mnt/user/appdata/find-my-timeline/data" Mode="rw" Description="Persistent SQLite database directory containing sensitive location history." Type="Path" Display="always" Required="true" Mask="false"/>
   <Config Name="Apple Session" Target="/root/.find-my-timeline" Default="/mnt/user/appdata/find-my-timeline/session" Mode="rw" Description="Persistent Apple session, cookies and authentication timestamp metadata." Type="Path" Display="always" Required="true" Mask="false"/>
   <Config Name="Apple ID" Target="ICLOUD_USERNAME" Default="" Description="Apple ID email address." Type="Variable" Display="always" Required="true" Mask="false"/>
