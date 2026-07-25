@@ -18,57 +18,84 @@ Install the app from Community Applications once published, or use the template 
 https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/templates/find-my-timeline.xml
 ```
 
-The Docker image is published through GitHub Container Registry:
+Docker image:
 
 ```text
 ghcr.io/heckpiet/find-my-timeline-unraid:latest
 ```
 
-### First authentication
+## Apple authentication
 
-1. Install the container and set `ICLOUD_USERNAME` to your Apple ID email address.
-2. Keep both persistent paths enabled:
-   - `/app/data`
-   - `/root/.find-my-timeline`
-3. Open the container console in Unraid.
-4. Run:
+The WebUI now shows an estimated session lifetime and can optionally start a new Apple authentication flow.
+
+The countdown is based on the last successful authentication and defaults to 90 days. It is only an estimate. Apple can invalidate a session earlier, so a successful location poll remains the authoritative signal.
+
+### Recommended WebUI flow
+
+1. Set `ICLOUD_USERNAME`.
+2. Enable `WEB_AUTH_ENABLED`.
+3. Set a long, unique `WEB_ADMIN_PASSWORD`.
+4. Open the WebUI and select **Re-authenticate**.
+5. Enter the WebUI administrator password and Apple ID password.
+6. Enter the new verification code shown on a trusted Apple device.
+
+The Apple ID password and verification code are not written to SQLite or the authentication metadata file. Session cookies remain stored in `/root/.find-my-timeline`.
+
+### CLI fallback
 
 ```bash
 find-my-timeline auth
 ```
 
-5. Enter your Apple ID password and the newly requested two-factor authentication code.
-6. Restart the container.
+For Docker:
 
-The Apple session is stored in the persistent session path. Re-run the command when Apple expires the session.
+```bash
+docker exec -it find-my-timeline find-my-timeline auth
+docker restart find-my-timeline
+```
+
+Legacy Apple two-step authentication remains CLI-only.
 
 ## Configuration
 
 | Variable | Default | Description |
 |---|---:|---|
 | `ICLOUD_USERNAME` | — | Apple ID email address |
-| `ICLOUD_PASSWORD` | unset | Optional; entering the password interactively is recommended |
+| `ICLOUD_PASSWORD` | unset | Optional persistent password; leaving it unset is safer |
 | `POLL_MIN_INTERVAL` | `7` | Minimum interval between requests in minutes |
 | `POLL_MAX_INTERVAL` | `10` | Maximum interval between requests in minutes |
 | `DATABASE_PATH` | `/app/data/locations.db` | SQLite database path |
 | `WEB_HOST` | `0.0.0.0` | Web server binding inside the container |
 | `WEB_PORT` | `5000` | Internal WebUI port |
-| `TZ` | `Europe/Berlin` in the Unraid template | Container timezone |
+| `WEB_AUTH_ENABLED` | `false` | Enables browser-based Apple re-authentication |
+| `WEB_ADMIN_PASSWORD` | unset | Protects the browser authentication endpoints |
+| `AUTH_SESSION_LIFETIME_DAYS` | `90` | Estimated Apple session lifetime used by the countdown |
+| `WEB_AUTH_FLOW_TIMEOUT_SECONDS` | `600` | Maximum time allowed between starting auth and entering 2FA |
+| `TZ` | `Europe/Berlin` | Container timezone in the Unraid template |
 
 ## Persistent data
 
 | Container path | Purpose |
 |---|---|
 | `/app/data` | SQLite database containing device and location history |
-| `/root/.find-my-timeline` | Apple session and cookie files |
+| `/root/.find-my-timeline` | Apple session, cookies and non-secret auth timestamp metadata |
 
-Back up both paths, especially `/app/data`.
+Back up both paths. Location data and Apple session cookies are sensitive.
 
 ## Security notice
 
-The current WebUI does not provide its own authentication. Do not expose port 5000 directly to the internet. Access it through your trusted local network, a VPN such as WireGuard or Tailscale, or a reverse proxy with authentication.
+The location map itself does not include a built-in user login. `WEB_ADMIN_PASSWORD` protects only the endpoints that start and complete Apple authentication. It does not protect map or location-history access.
 
-Location data is sensitive personal information. Protect the appdata directory and its backups accordingly.
+Do not expose port 5000 directly to the internet. Use one or more of the following:
+
+- trusted local network access
+- WireGuard or Tailscale
+- HTTPS through a reverse proxy
+- reverse-proxy authentication such as Authelia, Authentik or OAuth2 Proxy
+
+Use a unique administrator password with at least 20 random characters. Do not reuse the Apple ID password. Avoid configuring `ICLOUD_PASSWORD` unless unattended recovery is more important than reducing stored secrets.
+
+The application adds `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Cache-Control` response headers. Browser authentication requests expire after the configured timeout and require the administrator password on every write request.
 
 ## Docker usage outside Unraid
 
@@ -80,18 +107,13 @@ docker run -d \
   --restart unless-stopped \
   -p 5000:5000 \
   -e ICLOUD_USERNAME=your-apple-id@example.com \
+  -e WEB_AUTH_ENABLED=true \
+  -e WEB_ADMIN_PASSWORD='replace-with-a-long-random-password' \
   -e POLL_MIN_INTERVAL=7 \
   -e POLL_MAX_INTERVAL=10 \
   -v "$(pwd)/data:/app/data" \
   -v "$(pwd)/session:/root/.find-my-timeline" \
   ghcr.io/heckpiet/find-my-timeline-unraid:latest
-```
-
-Authenticate interactively afterward:
-
-```bash
-docker exec -it find-my-timeline find-my-timeline auth
-docker restart find-my-timeline
 ```
 
 ## Commands
@@ -107,12 +129,14 @@ docker restart find-my-timeline
 
 ## Community Applications publishing checklist
 
-1. Merge the Unraid preparation branch into `master`.
-2. Confirm the GitHub Actions Docker workflow succeeds.
-3. Open the package settings for `ghcr.io/heckpiet/find-my-timeline-unraid` and set the package visibility to **Public**.
-4. Pull and test `ghcr.io/heckpiet/find-my-timeline-unraid:latest` on Unraid.
-5. Validate and scan the repository at the Unraid Community Applications submission portal.
-6. Submit the repository for review once all checks pass.
+1. Merge the prepared feature branch into `master`.
+2. Confirm the Docker build workflow succeeds.
+3. Set `ghcr.io/heckpiet/find-my-timeline-unraid` visibility to **Public**.
+4. Pull and test the image on Unraid.
+5. Confirm both appdata paths survive container updates.
+6. Test first authentication, re-authentication, an invalid admin password and an expired 2FA flow.
+7. Validate and scan the repository at the Unraid Community Applications submission portal.
+8. Submit the repository for review.
 
 ## License and attribution
 
