@@ -8,13 +8,16 @@ LABEL org.opencontainers.image.licenses="MIT"
 ENV PYTHONUNBUFFERED=1 \
     WEB_HOST=0.0.0.0 \
     WEB_PORT=5000 \
-    DATABASE_PATH=/app/data/locations.db
+    DATABASE_PATH=/app/data/locations.db \
+    AUTH_SESSION_LIFETIME_DAYS=90 \
+    WEB_AUTH_ENABLED=false
 
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 COPY templates/ ./templates/
+COPY static/ ./static/
 
 RUN pip install --no-cache-dir -e .
 
