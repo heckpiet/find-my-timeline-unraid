@@ -4,9 +4,19 @@ Self-hosted Apple Find My location history for Unraid, with an interactive timel
 
 > Unofficial Unraid-focused fork. This project is not affiliated with or endorsed by Apple or Lime Technology.
 
-![Preview](preview.png)
-![Preview Detail](preview2.png)
-![Preview Timeline](preview3.png)
+## Screenshots
+
+### Dashboard and route map
+
+![Find My Timeline dashboard](https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview.png)
+
+### Location details
+
+![Find My Timeline location details](https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview2.png)
+
+### Chronological timeline
+
+![Find My Timeline device timeline](https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview3.png)
 
 ## What this project does
 
@@ -19,24 +29,34 @@ This makes it possible to review questions such as:
 - When was a device last seen and what battery level was reported?
 - How many location records have been collected for each device?
 
-The WebUI provides an interactive map, device selection, time-range filters, route lines, individual location points and a chronological timeline.
+The WebUI provides an interactive map, device selection, exact date and time filters, route lines, individual location points and a chronological timeline.
 
-## Highlights of this Unraid edition
+## Main features
 
 - Unraid Community Applications template
-- published Docker image through GitHub Container Registry
+- public and versioned Docker images through GitHub Container Registry
 - persistent SQLite location database
 - persistent Apple session and cookie storage
 - configurable polling intervals
-- WebUI session-status card
-- estimated countdown until Apple re-authentication may be required
+- responsive desktop and mobile WebUI
+- device cards, status metrics and exact date/time search
+- Apple session-status card and estimated re-authentication countdown
 - optional browser-based Apple 2FA workflow
 - separate administrator password for authentication actions
 - masked Apple ID display
 - expiring in-memory authentication flow
 - security-focused response headers
 - Docker health check
-- documented backup, deployment and reverse-proxy guidance
+- documented backup, update and reverse-proxy guidance
+
+## Requirements
+
+- Unraid OS 6.12 or newer
+- Docker enabled on Unraid
+- Apple ID with two-factor authentication
+- at least one device available through Apple's Find My service
+- internet access from the container
+- persistent Unraid appdata storage
 
 ## Important privacy notice
 
@@ -44,67 +64,83 @@ Location history is highly sensitive personal data. This application stores loca
 
 Do not expose the WebUI directly to the public internet. Use a trusted local network, WireGuard, Tailscale or an authenticated HTTPS reverse proxy.
 
-## Unraid installation
+## Quick start on Unraid
 
-The application is prepared for Unraid Community Applications. Until it is published there, the template can be added manually:
+1. Install **Find My Timeline** through Community Applications.
+2. Enter your Apple ID email address in `ICLOUD_USERNAME`.
+3. Keep both persistent appdata paths enabled.
+4. Choose one of the authentication methods below.
+5. Restart the container after a successful Apple authentication.
+6. Open the WebUI on the configured host port, normally port `5000`.
+7. Confirm that devices appear and the container health status becomes `healthy`.
 
-```text
-https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/templates/find-my-timeline.xml
-```
+### Recommended WebUI authentication
 
-Docker image:
-
-```text
-ghcr.io/heckpiet/find-my-timeline-unraid:latest
-```
-
-### Required persistent paths
-
-| Container path | Recommended Unraid path | Purpose |
-|---|---|---|
-| `/app/data` | `/mnt/user/appdata/find-my-timeline/data` | SQLite database containing location history |
-| `/root/.find-my-timeline` | `/mnt/user/appdata/find-my-timeline/session` | Apple session, cookie files and non-secret authentication metadata |
-
-Back up both directories. The database contains movement history and the session directory contains reusable Apple session material.
-
-## Apple authentication
-
-The WebUI displays the current authentication state and an estimated remaining session lifetime. The default estimate is 90 days, but Apple may invalidate a session earlier. A successful device poll is therefore more authoritative than the countdown.
-
-### Recommended WebUI flow
-
-1. Configure `ICLOUD_USERNAME`.
-2. Set `WEB_AUTH_ENABLED=true`.
-3. Set a long and unique `WEB_ADMIN_PASSWORD`.
-4. Open the WebUI and select **Re-authenticate**.
+1. Set `WEB_AUTH_ENABLED=true`.
+2. Set a long and unique `WEB_ADMIN_PASSWORD`.
+3. Start the container and open the WebUI.
+4. Select **Re-authenticate**.
 5. Enter the WebUI administrator password and Apple ID password.
 6. Enter the verification code shown on a trusted Apple device.
 7. Confirm that the WebUI reports a successful session renewal.
 
-The Apple ID password and verification code are held only for the active authentication flow. They are not written to SQLite or the authentication metadata file. Apple session cookies remain stored in `/root/.find-my-timeline`.
+### CLI authentication fallback
 
-Legacy Apple two-step authentication remains available through the CLI only.
-
-### CLI fallback
-
-Inside the container:
+Open the container console and run:
 
 ```bash
 find-my-timeline auth
 ```
 
-From the Unraid host or another Docker host:
+From the Unraid host you can also use:
 
 ```bash
 docker exec -it find-my-timeline find-my-timeline auth
 docker restart find-my-timeline
 ```
 
+## Unraid installation details
+
+The Community Applications template is available at:
+
+```text
+https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/templates/find-my-timeline.xml
+```
+
+Recommended image for automatic updates:
+
+```text
+ghcr.io/heckpiet/find-my-timeline-unraid:latest
+```
+
+Pinned stable image:
+
+```text
+ghcr.io/heckpiet/find-my-timeline-unraid:0.2.0
+```
+
+### Required persistent paths
+
+| Container path | Recommended Unraid path | Purpose |
+|---|---|---|
+| `/app/data` | `/mnt/user/appdata/find-my-timeline/data` | SQLite database containing device and location history |
+| `/root/.find-my-timeline` | `/mnt/user/appdata/find-my-timeline/session` | Apple session, cookie files and authentication metadata |
+
+Back up both directories. The database contains movement history and the session directory contains reusable Apple session material.
+
+## Apple authentication and stored secrets
+
+The WebUI displays the current authentication state and an estimated remaining session lifetime. The default estimate is 90 days, but Apple may invalidate a session earlier. A successful device poll is more authoritative than the countdown.
+
+The Apple ID password and verification code entered through the WebUI are held only for the active authentication flow. They are not written to SQLite or the authentication metadata file. Apple session cookies remain stored in `/root/.find-my-timeline`.
+
+Legacy Apple two-step authentication remains available through the CLI only.
+
 ## Configuration
 
 | Variable | Default | Description |
 |---|---:|---|
-| `ICLOUD_USERNAME` | — | Apple ID email address |
+| `ICLOUD_USERNAME` | — | Apple ID email address whose devices should be recorded |
 | `ICLOUD_PASSWORD` | unset | Optional persistent password; leaving it unset reduces stored secrets |
 | `POLL_MIN_INTERVAL` | `7` | Minimum interval between Apple location requests in minutes |
 | `POLL_MAX_INTERVAL` | `10` | Maximum interval between Apple location requests in minutes |
@@ -112,10 +148,12 @@ docker restart find-my-timeline
 | `WEB_HOST` | `0.0.0.0` | Web server binding inside the container |
 | `WEB_PORT` | `5000` | Internal WebUI port |
 | `WEB_AUTH_ENABLED` | `false` | Enables browser-based Apple re-authentication |
-| `WEB_ADMIN_PASSWORD` | unset | Protects the browser authentication endpoints |
+| `WEB_ADMIN_PASSWORD` | unset | Protects browser authentication actions, not the map or APIs |
 | `AUTH_SESSION_LIFETIME_DAYS` | `90` | Estimated Apple session lifetime used by the countdown |
 | `WEB_AUTH_FLOW_TIMEOUT_SECONDS` | `600` | Maximum time between starting authentication and entering the verification code |
 | `TZ` | `Europe/Berlin` | Container timezone in the Unraid template |
+
+The minimum polling interval must not be greater than the maximum polling interval.
 
 ## Security model
 
@@ -133,6 +171,30 @@ Recommended deployment controls:
 - restrict access to Unraid appdata and its backups
 
 The application adds `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Cache-Control` response headers. Browser authentication requests expire after the configured timeout and require the administrator password on every write request.
+
+## Updating on Unraid
+
+The container uses persistent volumes, so replacing or updating the image should not remove the database or Apple session as long as both paths remain mapped correctly.
+
+Before updating:
+
+1. Back up `/app/data` and `/root/.find-my-timeline`.
+2. Verify the existing path mappings.
+3. Confirm that the container repository uses `ghcr.io/heckpiet/find-my-timeline-unraid:latest` for automatic updates, or a fixed version tag when pinning a release.
+4. Apply the Docker update from Unraid.
+5. Confirm that devices, historical locations and authentication status remain available.
+6. Confirm that the container health status becomes `healthy`.
+
+## Backup and restore
+
+Back up these Unraid directories:
+
+```text
+/mnt/user/appdata/find-my-timeline/data
+/mnt/user/appdata/find-my-timeline/session
+```
+
+To restore, stop the container, restore both directories to the same locations and start the container again. Protect backups because they contain sensitive movement history and reusable Apple session material.
 
 ## Docker usage outside Unraid
 
@@ -169,18 +231,7 @@ http://your-server:5000
 | `find-my-timeline start` | Start polling and the WebUI |
 | `find-my-timeline stats` | Show database statistics |
 | `find-my-timeline devices` | List tracked devices |
-
-## Updating on Unraid
-
-The container uses persistent volumes, so replacing or updating the image should not remove the database or Apple session as long as both paths remain mapped correctly.
-
-Before updating:
-
-1. Back up `/app/data` and `/root/.find-my-timeline`.
-2. Verify the existing path mappings.
-3. Pull the new image.
-4. Recreate or update the container.
-5. Confirm that devices, historical locations and authentication status remain available.
+| `find-my-timeline --version` | Show the installed application version |
 
 ## Troubleshooting
 
@@ -211,33 +262,29 @@ Then restart the container.
 
 Start the process again. The default browser authentication window is ten minutes and can be adjusted with `WEB_AUTH_FLOW_TIMEOUT_SECONDS`.
 
-## Unraid Community Applications readiness
+### Container is unhealthy
 
-The repository includes:
+Check the container logs and verify that the WebUI is listening on port `5000`. The health check calls the local `/api/stats` endpoint.
 
-- `templates/find-my-timeline.xml`
-- `ca_profile.xml`
-- application icon
-- Dockerfile with health check and OCI metadata
-- persistent path definitions
-- masked password fields
-- support, project and README links
-- installation requirements and security warnings
-- configurable timezone and polling intervals
+## Validation status
 
-Before final Community Applications submission:
+Version 0.2.0 was successfully tested on Unraid OS 7.3.2 with:
 
-1. Confirm the Docker build workflow succeeds.
-2. Set `ghcr.io/heckpiet/find-my-timeline-unraid` visibility to **Public**.
-3. Pull and test the image on a real Unraid installation.
-4. Confirm both persistent paths survive container updates.
-5. Test initial authentication, re-authentication, invalid administrator credentials and an expired 2FA flow.
-6. Validate and scan the repository through the Unraid Community Applications submission process.
-7. Submit the repository for review.
+- public GHCR image pull
+- installation through the Unraid Docker template
+- persistent SQLite database storage
+- persistent Apple session and cookie storage
+- Apple two-factor authentication
+- device discovery and location polling
+- WebUI access on port 5000
+- container restart and data persistence
+- Docker health check
+
+More details are available in [`docs/UNRAID_VALIDATION.md`](docs/UNRAID_VALIDATION.md).
 
 ## Support and contributions
 
-Please use this repository's issue tracker for Unraid packaging, Docker deployment and WebUI authentication problems. Issues that also affect the upstream application should include enough detail to reproduce the problem independently of Unraid.
+Use the [GitHub issue tracker](https://github.com/heckpiet/find-my-timeline-unraid/issues) for Unraid packaging, Docker deployment and WebUI authentication problems. Include the Unraid version, container logs with secrets removed, the Docker image tag and clear reproduction steps.
 
 Contributions are welcome. Keep changes focused, avoid logging secrets and include documentation for new environment variables or persistent data.
 
