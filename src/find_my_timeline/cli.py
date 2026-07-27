@@ -3,6 +3,7 @@
 import logging
 import os
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from threading import Thread
 
@@ -21,6 +22,11 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
+try:
+    APP_VERSION = version("find-my-timeline")
+except PackageNotFoundError:
+    APP_VERSION = "development"
+
 
 def get_config():
     """Get configuration from environment variables."""
@@ -36,7 +42,7 @@ def get_config():
 
 
 @click.group()
-@click.version_option(version="0.1.0")
+@click.version_option(version=APP_VERSION)
 def main():
     """Find My Timeline - Track your Apple device locations over time."""
 

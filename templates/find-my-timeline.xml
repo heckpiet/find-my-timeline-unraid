@@ -15,10 +15,22 @@
   <Category>Tools:Utilities</Category>
   <ExtraSearchTerms>Apple Find My location history timeline iCloud tracking map GPS responsive dashboard mobile</ExtraSearchTerms>
   <Requires>Apple ID with two-factor authentication and internet access. The WebUI exposes sensitive location history and must not be published directly to the internet. Use a trusted network, VPN or authenticated HTTPS reverse proxy.</Requires>
-  <Changes>Introduced the responsive WebUI 2.0 dashboard with desktop and mobile navigation, status metrics, improved device cards, exact date/time search, a dedicated timeline view and a modernized map experience. Apple session status and protected WebUI re-authentication remain integrated.</Changes>
-  <Date>2026-07-25</Date>
+  <Changes>Version 0.2.0. Validated on Unraid OS 7.3.2 with the public GHCR image, persistent database and Apple session volumes, WebUI, health check, device polling and Apple two-factor authentication. Adds versioned Docker tags and automated GitHub releases.</Changes>
+  <Date>2026-07-27</Date>
   <MinVer>6.12.0</MinVer>
   <License>MIT</License>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview2.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview3.png</Screenshot>
+  <DefaultTagDescription>Latest stable release</DefaultTagDescription>
+  <Branch>
+    <Tag>latest</Tag>
+    <TagDescription>Latest stable image</TagDescription>
+  </Branch>
+  <Branch>
+    <Tag>0.2.0</Tag>
+    <TagDescription>Version 0.2.0, validated on Unraid OS 7.3.2</TagDescription>
+  </Branch>
   <Config Name="WebUI" Target="5000" Default="5000" Mode="tcp" Description="HTTP port for the responsive WebUI. Do not expose directly to the internet." Type="Port" Display="always" Required="true" Mask="false"/>
   <Config Name="Database" Target="/app/data" Default="/mnt/user/appdata/find-my-timeline/data" Mode="rw" Description="Persistent SQLite database directory containing sensitive location history." Type="Path" Display="always" Required="true" Mask="false"/>
   <Config Name="Apple Session" Target="/root/.find-my-timeline" Default="/mnt/user/appdata/find-my-timeline/session" Mode="rw" Description="Persistent Apple session, cookies and authentication timestamp metadata." Type="Path" Display="always" Required="true" Mask="false"/>
