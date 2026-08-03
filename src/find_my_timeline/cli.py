@@ -9,6 +9,7 @@ from threading import Thread
 
 import click
 from dotenv import load_dotenv
+from waitress import serve
 
 from .auth import AuthenticationError, ICloudAuth
 from .database import LocationDatabase
@@ -35,6 +36,7 @@ def get_config():
         "password": os.getenv("ICLOUD_PASSWORD"),
         "min_interval": int(os.getenv("POLL_MIN_INTERVAL", "7")),
         "max_interval": int(os.getenv("POLL_MAX_INTERVAL", "10")),
+        "auth_retry_interval": int(os.getenv("AUTH_RETRY_INTERVAL_MINUTES", "5")),
         "db_path": os.getenv("DATABASE_PATH", "./data/locations.db"),
         "web_host": os.getenv("WEB_HOST", "127.0.0.1"),
         "web_port": int(os.getenv("WEB_PORT", "5000")),
@@ -87,7 +89,13 @@ def poll(username, password, min_interval, max_interval):
         sys.exit(1)
     handler = ICloudAuth(username, password)
     database = LocationDatabase(config["db_path"])
-    poller = LocationPoller(handler, database, min_interval, max_interval)
+    poller = LocationPoller(
+        handler,
+        database,
+        min_interval,
+        max_interval,
+        auth_retry_interval=config["auth_retry_interval"],
+    )
     poller.on_poll(lambda locations: click.echo(f"Recorded {len(locations)} location(s)") if locations else None)
     try:
         poller.start()
@@ -107,7 +115,7 @@ def web(host, port):
     host = host or config["web_host"]
     port = port or config["web_port"]
     click.echo(f"Starting web server at http://{host}:{port}")
-    app.run(host=host, port=port, debug=False)
+    serve(app, host=host, port=port, threads=4)
 
 
 @main.command()
@@ -133,8 +141,9 @@ def start(username, password, host, port):
         database=database,
         min_interval=config["min_interval"],
         max_interval=config["max_interval"],
+        auth_retry_interval=config["auth_retry_interval"],
     )
-    app = create_app(database, handler)
+    app = create_app(database, handler, poller)
 
     click.echo("Starting Find My Timeline")
     click.echo(f"  Polling interval: {config['min_interval']}-{config['max_interval']} minutes")
@@ -143,9 +152,10 @@ def start(username, password, host, port):
 
     Thread(target=poller.start, daemon=True).start()
     try:
-        app.run(host=host, port=port, debug=False, use_reloader=False)
+        serve(app, host=host, port=port, threads=4)
     except KeyboardInterrupt:
         click.echo("\nShutting down...")
+    finally:
         poller.stop()
 
 

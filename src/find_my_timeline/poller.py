@@ -4,10 +4,11 @@ import logging
 import random
 import signal
 import time
-from datetime import datetime
+from datetime import datetime, timezone
+from threading import Event, RLock
 from typing import Callable
 
-from .auth import ICloudAuth, AuthenticationError
+from .auth import AuthenticationError, ICloudAuth
 from .database import LocationDatabase
 
 logger = logging.getLogger(__name__)
@@ -22,13 +23,24 @@ class LocationPoller:
         database: LocationDatabase,
         min_interval: int = 7,
         max_interval: int = 10,
+        auth_retry_interval: int = 5,
     ):
         self.auth = auth
         self.database = database
         self.min_interval = min_interval
         self.max_interval = max_interval
+        self.auth_retry_interval = auth_retry_interval
         self._running = False
         self._on_poll_callbacks: list[Callable[[list[dict]], None]] = []
+        self._wake_event = Event()
+        self._status_lock = RLock()
+        self._status = {
+            "state": "stopped",
+            "last_attempt_at": None,
+            "last_success_at": None,
+            "next_poll_at": None,
+            "last_error": None,
+        }
 
     def on_poll(self, callback: Callable[[list[dict]], None]) -> None:
         """Register a callback to be called after each poll."""
@@ -38,13 +50,26 @@ class LocationPoller:
         """Get a random interval between min and max (in minutes)."""
         return random.uniform(self.min_interval, self.max_interval) * 60
 
+    def status(self) -> dict:
+        """Return a thread-safe snapshot of the poller state."""
+        with self._status_lock:
+            return dict(self._status)
+
+    def wake(self) -> None:
+        """Wake the poller so a renewed Apple session is used immediately."""
+        self._wake_event.set()
+
+    def _set_status(self, **changes) -> None:
+        with self._status_lock:
+            self._status.update(changes)
+
+    def _wait(self, seconds: float) -> None:
+        self._wake_event.wait(max(0, seconds))
+        self._wake_event.clear()
+
     def poll_once(self) -> list[dict]:
         """Poll all devices once and store locations. Returns the recorded locations."""
-        try:
-            devices = self.auth.get_devices()
-        except Exception as e:
-            logger.error(f"Failed to get devices: {e}")
-            return []
+        devices = self.auth.get_devices()
 
         recorded = []
 
@@ -137,6 +162,7 @@ class LocationPoller:
                       This prevents lockouts in non-interactive contexts like Docker.
         """
         self._running = True
+        self._set_status(state="starting", last_error=None, next_poll_at=None)
 
         # Set up signal handlers for graceful shutdown (only in main thread)
         if setup_signals:
@@ -155,34 +181,54 @@ class LocationPoller:
             f"Starting location poller (interval: {self.min_interval}-{self.max_interval} minutes)"
         )
 
-        # Authenticate (don't allow 2FA by default to prevent lockouts in Docker)
-        try:
-            self.auth.authenticate(allow_2fa=allow_2fa)
-            logger.info("Authentication successful")
-        except AuthenticationError as e:
-            logger.error(f"Authentication failed: {e}")
-            return
-
-        # Initial poll
-        self.poll_once()
-
         while self._running:
-            interval = self._get_next_interval()
-            next_poll = datetime.now().timestamp() + interval
-            next_poll_time = datetime.fromtimestamp(next_poll).strftime("%H:%M:%S")
+            now = datetime.now(timezone.utc).isoformat()
+            self._set_status(state="authenticating", last_attempt_at=now, next_poll_at=None)
+            try:
+                if self.auth.api is None:
+                    self.auth.authenticate(allow_2fa=allow_2fa)
+                recorded = self.poll_once()
+                completed_at = datetime.now(timezone.utc)
+                interval = self._get_next_interval()
+                next_poll_at = datetime.fromtimestamp(
+                    completed_at.timestamp() + interval, timezone.utc
+                )
+                self._set_status(
+                    state="running",
+                    last_success_at=completed_at.isoformat(),
+                    next_poll_at=next_poll_at.isoformat(),
+                    last_error=None,
+                )
+                logger.info("Poll successful; recorded %d location(s)", len(recorded))
+                logger.info(
+                    "Next poll in %.1f minutes (at %s)",
+                    interval / 60,
+                    next_poll_at.astimezone().strftime("%H:%M:%S"),
+                )
+                self._wait(interval)
+            except Exception as exc:
+                # A failed or expired session must not terminate the background
+                # service. Clear it, report the degraded state, and retry later.
+                self.auth.api = None
+                retry_seconds = max(1, self.auth_retry_interval) * 60
+                retry_at = datetime.fromtimestamp(time.time() + retry_seconds, timezone.utc)
+                public_error = (
+                    str(exc)
+                    if isinstance(exc, AuthenticationError)
+                    else "Apple service or network request failed"
+                )
+                self._set_status(
+                    state="waiting_for_authentication",
+                    last_error=public_error,
+                    next_poll_at=retry_at.isoformat(),
+                )
+                logger.error("Polling unavailable: %s; retrying in %d minute(s)", exc, self.auth_retry_interval)
+                self._wait(retry_seconds)
 
-            logger.info(f"Next poll in {interval/60:.1f} minutes (at {next_poll_time})")
-
-            # Sleep in small increments to allow for graceful shutdown
-            sleep_end = time.time() + interval
-            while self._running and time.time() < sleep_end:
-                time.sleep(min(1, sleep_end - time.time()))
-
-            if self._running:
-                self.poll_once()
-
+        self._set_status(state="stopped", next_poll_at=None)
         logger.info("Poller stopped")
 
     def stop(self) -> None:
         """Stop the polling loop."""
         self._running = False
+        self._wake_event.set()

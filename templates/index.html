@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/status.css">
 </head>
 <body>
   <div class="app-shell">
@@ -45,6 +46,8 @@
       </section>
 
       <section class="section sidebar-summary">
+        <div class="mini-stat"><span>Poller</span><strong id="poller-state">Checking…</strong></div>
+        <div class="mini-stat"><span>Last successful poll</span><strong id="poller-success">—</strong></div>
         <div class="mini-stat"><span>Last refresh</span><strong id="last-refresh">—</strong></div>
         <div class="mini-stat"><span>Visible points</span><strong id="visible-points">0</strong></div>
       </section>

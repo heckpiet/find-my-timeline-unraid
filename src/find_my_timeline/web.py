@@ -14,7 +14,7 @@ from .auth import AuthenticationError, ICloudAuth
 from .database import LocationDatabase
 
 
-def create_app(database: LocationDatabase, auth: ICloudAuth | None = None) -> Flask:
+def create_app(database: LocationDatabase, auth: ICloudAuth | None = None, poller=None) -> Flask:
     """Create and configure the Flask application."""
     app = Flask(
         __name__,
@@ -114,6 +114,8 @@ def create_app(database: LocationDatabase, auth: ICloudAuth | None = None) -> Fl
             auth.get_devices()
             with state_lock:
                 state["waiting_for_code"] = False
+            if poller:
+                poller.wake()
             return jsonify({"status": "authenticated"})
         except AuthenticationError as exc:
             return jsonify({"error": str(exc)}), 400
@@ -129,10 +131,19 @@ def create_app(database: LocationDatabase, auth: ICloudAuth | None = None) -> Fl
         start = request.args.get("start")
         end = request.args.get("end")
         limit = request.args.get("limit", type=int, default=1000)
+        if limit is None or limit < 1 or limit > 5000:
+            return jsonify({"error": "limit must be between 1 and 5000"}), 400
+        if hours is not None and hours < 1:
+            return jsonify({"error": "hours must be greater than zero"}), 400
         start_time = datetime.now() - timedelta(hours=hours) if hours else None
-        if start and not hours:
-            start_time = datetime.fromisoformat(start)
-        end_time = datetime.fromisoformat(end) if end else None
+        try:
+            if start and not hours:
+                start_time = datetime.fromisoformat(start)
+            end_time = datetime.fromisoformat(end) if end else None
+        except ValueError:
+            return jsonify({"error": "start and end must be ISO 8601 date-time values"}), 400
+        if start_time and end_time and start_time > end_time:
+            return jsonify({"error": "start must not be later than end"}), 400
         return jsonify(database.get_locations(
             device_id=device_id,
             start_time=start_time,
@@ -165,6 +176,23 @@ def create_app(database: LocationDatabase, auth: ICloudAuth | None = None) -> Fl
                 "latest_location": database.get_latest_location(device["id"]),
             } for device in devices],
         })
+
+    @app.route("/api/system/status")
+    def api_system_status():
+        """Expose operational state without returning location coordinates."""
+        return jsonify({
+            "database_ready": database.is_ready(),
+            "poller": poller.status() if poller else {"state": "not_running"},
+        })
+
+    @app.route("/health/live")
+    def health_live():
+        return jsonify({"status": "ok"})
+
+    @app.route("/health/ready")
+    def health_ready():
+        ready = database.is_ready()
+        return jsonify({"status": "ready" if ready else "not_ready"}), 200 if ready else 503
 
     return app
 

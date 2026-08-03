@@ -1,0 +1,24 @@
+name: Unraid validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Exact public GHCR image tag to validate
+        required: true
+        default: ghcr.io/heckpiet/find-my-timeline-unraid:latest
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-smoke-test:
+    runs-on: [self-hosted, linux, x64, unraid]
+    environment: unraid-validation
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate approved image on Unraid
+        env:
+          IMAGE: ${{ inputs.image }}
+          HOST_PORT: '15010'
+        run: ./scripts/unraid-smoke.sh

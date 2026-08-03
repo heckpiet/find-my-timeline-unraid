@@ -1,5 +1,5 @@
 (() => {
-  const state = { devices: [], locations: [], selectedDevice: null, hours: 24, start: null, end: null, markers: [], lines: [], bounds: [] };
+  const state = { devices: [], locations: [], selectedDevice: null, hours: 24, start: null, end: null, markers: [], lines: [], bounds: [], pollerLabel: 'Ready' };
   const $ = (id) => document.getElementById(id);
   const map = L.map('map', { zoomControl: false }).setView([51.1657, 10.4515], 6);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -29,7 +29,7 @@
 
   function setBusy(busy) {
     $('refresh-btn').disabled = busy;
-    $('live-status').lastChild.textContent = busy ? ' Loading' : ' Ready';
+    $('live-status').lastChild.textContent = busy ? ' Loading' : ` ${state.pollerLabel}`;
   }
 
   function switchView(view) {
@@ -121,7 +121,7 @@
       return `<button class="timeline-entry ${index === 0 ? 'latest' : ''}" data-lat="${loc.latitude}" data-lng="${loc.longitude}">
         <span><span class="timeline-time">${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span><span class="timeline-date">${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span></span>
         <span class="timeline-rail"><i></i></span>
-        <span><span class="timeline-position">${iconFor(deviceName(loc.device_id))} ${escapeHtml(deviceName(loc.device_id))}</span><span class="timeline-detail">${loc.position_type || 'Location'} · ${loc.horizontal_accuracy ? `${Math.round(loc.horizontal_accuracy)} m accuracy` : 'accuracy unknown'}</span></span>
+        <span><span class="timeline-position">${iconFor(deviceName(loc.device_id))} ${escapeHtml(deviceName(loc.device_id))}</span><span class="timeline-detail">${escapeHtml(loc.position_type || 'Location')} · ${loc.horizontal_accuracy ? `${Math.round(loc.horizontal_accuracy)} m accuracy` : 'accuracy unknown'}</span></span>
         <span class="timeline-battery">${battery == null ? '' : `${battery}%`}</span>
       </button>`;
     }).join('');
@@ -143,15 +143,39 @@
     $('last-refresh').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  function updateSystemStatus(system) {
+    const poller = system.poller || {};
+    const labels = {
+      running: 'Running',
+      starting: 'Starting',
+      authenticating: 'Authenticating',
+      waiting_for_authentication: 'Authentication required',
+      stopped: 'Stopped',
+      not_running: 'Not running'
+    };
+    const label = labels[poller.state] || 'Unknown';
+    state.pollerLabel = label;
+    $('poller-state').textContent = label;
+    $('poller-success').textContent = poller.last_success_at ? fmtRelative(poller.last_success_at) : 'Never';
+    $('live-status').lastChild.textContent = ` ${label}`;
+    $('live-status').classList.toggle('degraded', poller.state === 'waiting_for_authentication' || poller.state === 'stopped');
+  }
+
   async function loadStatsAndDevices() {
-    const [statsResponse, devicesResponse] = await Promise.all([fetch('/api/stats', { cache: 'no-store' }), fetch('/api/devices', { cache: 'no-store' })]);
-    if (!statsResponse.ok || !devicesResponse.ok) throw new Error('Could not load dashboard data');
+    const [statsResponse, devicesResponse, systemResponse] = await Promise.all([
+      fetch('/api/stats', { cache: 'no-store' }),
+      fetch('/api/devices', { cache: 'no-store' }),
+      fetch('/api/system/status', { cache: 'no-store' })
+    ]);
+    if (!statsResponse.ok || !devicesResponse.ok || !systemResponse.ok) throw new Error('Could not load dashboard data');
     const stats = await statsResponse.json();
     const devices = await devicesResponse.json();
+    const system = await systemResponse.json();
     const byId = Object.fromEntries(stats.devices.map((item) => [item.id, item]));
     state.devices = devices.map((device) => ({ ...device, ...byId[device.id] }));
     renderDevices();
     updateMetrics(stats);
+    updateSystemStatus(system);
   }
 
   function buildLocationUrl() {

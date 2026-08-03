@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install '.[test]'
+      - run: ruff check .
+      - run: pytest
+
+  unraid-template:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Parse Unraid template
+        run: python -c "import xml.etree.ElementTree as ET; ET.parse('templates/find-my-timeline.xml')"
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build image
+        run: docker build --tag find-my-timeline:ci .
+      - name: Start WebUI-only smoke container
+        run: |
+          docker run --detach --name find-my-timeline-ci \
+            --publish 127.0.0.1:5010:5000 \
+            find-my-timeline:ci \
+            find-my-timeline web --host 0.0.0.0 --port 5000
+      - name: Wait for readiness
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5010/health/ready; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs find-my-timeline-ci
+          exit 1
+      - name: Stop smoke container
+        if: always()
+        run: docker rm --force find-my-timeline-ci || true

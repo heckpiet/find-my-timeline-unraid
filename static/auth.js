@@ -41,7 +41,17 @@
       : status.state === 'expired' ? 'Estimated session lifetime reached'
       : status.state === 'session_present' ? 'Session found · authentication date unknown'
       : 'No session found';
-    statusEl.innerHTML = `<div class="auth-row"><span class="auth-dot ${status.state}"></span><strong>${text}</strong></div><div>${status.username_masked || ''}</div>`;
+    statusEl.replaceChildren();
+    const row = document.createElement('div');
+    row.className = 'auth-row';
+    const dot = document.createElement('span');
+    dot.className = `auth-dot ${status.state}`;
+    const strong = document.createElement('strong');
+    strong.textContent = text;
+    const username = document.createElement('div');
+    username.textContent = status.username_masked || '';
+    row.append(dot, strong);
+    statusEl.append(row, username);
     openButton.disabled = !status.web_auth_enabled || !status.admin_password_configured;
     openButton.title = status.web_auth_enabled ? '' : 'Enable WEB_AUTH_ENABLED and configure WEB_ADMIN_PASSWORD';
   }
