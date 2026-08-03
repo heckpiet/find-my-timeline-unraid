@@ -78,13 +78,14 @@ Do not expose the WebUI directly to the public internet. Use a trusted local net
 
 ### Recommended WebUI authentication
 
-1. Set `WEB_AUTH_ENABLED=true`.
-2. Set a long and unique `WEB_ADMIN_PASSWORD`.
-3. Start the container and open the WebUI.
-4. Select **Re-authenticate**.
-5. Enter the WebUI administrator password and Apple ID password.
-6. Enter the verification code shown on a trusted Apple device.
-7. Confirm that the WebUI reports a successful session renewal.
+1. Start the container and open the WebUI.
+2. Select **Set up & re-authenticate**.
+3. Create and confirm a long, unique WebUI administrator password.
+4. Enter the Apple ID password.
+5. Enter the verification code shown on a trusted Apple device.
+6. Confirm that the WebUI reports a successful session renewal and the poller resumes.
+
+The administrator password is persisted as a salted PBKDF2 hash in `/root/.find-my-timeline/web-admin.json`; the plaintext password is never stored. Existing installations using `WEB_ADMIN_PASSWORD` remain supported. The legacy `WEB_AUTH_ENABLED` variable is ignored so an old `false` value cannot silently disable recovery. Set `WEB_AUTH_DISABLED=true` only when browser authentication must be explicitly unavailable.
 
 ### CLI authentication fallback
 
@@ -118,7 +119,7 @@ ghcr.io/heckpiet/find-my-timeline-unraid:latest
 Pinned stable image:
 
 ```text
-ghcr.io/heckpiet/find-my-timeline-unraid:0.2.1
+ghcr.io/heckpiet/find-my-timeline-unraid:0.2.2
 ```
 
 ### Required persistent paths
@@ -150,8 +151,8 @@ Legacy Apple two-step authentication remains available through the CLI only.
 | `DATABASE_PATH` | `/app/data/locations.db` | SQLite database path |
 | `WEB_HOST` | `0.0.0.0` | Web server binding inside the container |
 | `WEB_PORT` | `5000` | Internal WebUI port |
-| `WEB_AUTH_ENABLED` | `false` | Enables browser-based Apple re-authentication |
-| `WEB_ADMIN_PASSWORD` | unset | Protects browser authentication actions, not the map or APIs |
+| `WEB_AUTH_DISABLED` | `false` | Explicitly disables browser-based Apple re-authentication |
+| `WEB_ADMIN_PASSWORD` | unset | Optional environment-managed administrator password; otherwise use first-run setup |
 | `AUTH_SESSION_LIFETIME_DAYS` | `90` | Estimated Apple session lifetime used by the countdown |
 | `WEB_AUTH_FLOW_TIMEOUT_SECONDS` | `600` | Maximum time between starting authentication and entering the verification code |
 | `TZ` | `Europe/Berlin` | Container timezone in the Unraid template |
@@ -171,7 +172,7 @@ The container exposes two lightweight health endpoints:
 
 ## Security model
 
-`WEB_ADMIN_PASSWORD` protects only the endpoints that start and complete Apple authentication. It does not protect the location map, device list or location-history APIs.
+The configured or first-run administrator password protects only the endpoints that start and complete Apple authentication. It does not protect the location map, device list or location-history APIs.
 
 Recommended deployment controls:
 
@@ -220,8 +221,6 @@ docker run -d \
   --restart unless-stopped \
   -p 5000:5000 \
   -e ICLOUD_USERNAME=your-apple-id@example.com \
-  -e WEB_AUTH_ENABLED=true \
-  -e WEB_ADMIN_PASSWORD='replace-with-a-long-random-password' \
   -e POLL_MIN_INTERVAL=7 \
   -e POLL_MAX_INTERVAL=10 \
   -v "$(pwd)/data:/app/data" \
@@ -266,11 +265,10 @@ The countdown is an estimate based on the last successful authentication. Apple 
 Confirm that:
 
 ```env
-WEB_AUTH_ENABLED=true
-WEB_ADMIN_PASSWORD=your-long-random-password
+WEB_AUTH_DISABLED=false
 ```
 
-Then restart the container.
+Then restart the container. If no administrator password exists yet, the button reads **Set up & re-authenticate** and creates it during the successful Apple authentication flow.
 
 ### Authentication flow expired
 
@@ -282,7 +280,7 @@ Check the container logs and verify that the WebUI is listening on port `5000`. 
 
 ## Validation status
 
-Version 0.2.0 was successfully tested on Unraid OS 7.3.2. Version 0.2.1 adds automated container smoke tests and an optional, manually approved Unraid runner workflow. The latter uses temporary data and never mounts production appdata.
+Version 0.2.0 was successfully tested on Unraid OS 7.3.2. Versions 0.2.1 and 0.2.2 add automated container smoke tests, self-healing polling and first-run WebUI administrator setup. The optional, manually approved Unraid runner workflow uses temporary data and never mounts production appdata.
 
 The 0.2.0 validation covered:
 

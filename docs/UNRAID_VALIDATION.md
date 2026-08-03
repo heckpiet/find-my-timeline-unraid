@@ -58,3 +58,12 @@ The following checks are required before tagging 0.2.1 and must not be marked as
 - run the manually approved `Unraid validation` workflow against the exact public 0.2.1 image
 
 The automated Unraid smoke workflow uses an empty temporary data directory and does not validate Apple authentication or production persistence. Those remain manual release checks using protected backups and the release-candidate image.
+
+## Version 0.2.2 release-candidate checks
+
+- update an existing container that still contains `WEB_AUTH_ENABLED=false` and confirm the setup button remains available
+- leave `WEB_ADMIN_PASSWORD` empty and complete **Set up & re-authenticate**
+- verify the chosen administrator password is never present in plaintext in appdata or logs
+- restart and recreate the container, then confirm the persisted administrator password still works
+- set `WEB_AUTH_DISABLED=true` and confirm browser authentication becomes unavailable
+- confirm successful first-run Apple 2FA wakes the poller without another restart

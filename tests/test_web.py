@@ -1,5 +1,6 @@
 from find_my_timeline.database import LocationDatabase
 from find_my_timeline.web import create_app
+from find_my_timeline.web_admin import WebAdminStore
 
 
 class PollerStub:
@@ -37,11 +38,16 @@ class AuthStub:
 
 
 def make_client(tmp_path, monkeypatch, with_auth=False):
-    monkeypatch.setenv("WEB_AUTH_ENABLED", "true" if with_auth else "false")
+    monkeypatch.delenv("WEB_AUTH_DISABLED", raising=False)
     monkeypatch.setenv("WEB_ADMIN_PASSWORD", "test-admin-password" if with_auth else "")
     database = LocationDatabase(tmp_path / "locations.db")
     poller = PollerStub()
-    app = create_app(database, AuthStub() if with_auth else None, poller)
+    app = create_app(
+        database,
+        AuthStub() if with_auth else None,
+        poller,
+        WebAdminStore(tmp_path / "session"),
+    )
     app.config.update(TESTING=True)
     return app.test_client(), poller
 
@@ -75,3 +81,59 @@ def test_successful_web_reauthentication_wakes_poller(tmp_path, monkeypatch):
 
     assert verified.status_code == 200
     assert poller.wake_calls == 1
+
+
+def test_first_run_setup_ignores_legacy_disabled_flag_and_persists_hash(tmp_path, monkeypatch):
+    monkeypatch.setenv("WEB_AUTH_ENABLED", "false")
+    monkeypatch.delenv("WEB_AUTH_DISABLED", raising=False)
+    monkeypatch.delenv("WEB_ADMIN_PASSWORD", raising=False)
+    database = LocationDatabase(tmp_path / "locations.db")
+    poller = PollerStub()
+    store = WebAdminStore(tmp_path / "session")
+    app = create_app(database, AuthStub(), poller, store)
+    app.config.update(TESTING=True)
+    client = app.test_client()
+
+    status = client.get("/api/auth/status").get_json()
+    assert status["web_auth_enabled"] is True
+    assert status["setup_required"] is True
+
+    password = "new-admin-password"
+    started = client.post(
+        "/api/auth/start",
+        json={"password": "apple-password", "admin_password": password},
+    )
+    assert started.status_code == 200
+    verified = client.post(
+        "/api/auth/verify",
+        headers={"X-Admin-Password": password},
+        json={"code": "123456"},
+    )
+
+    assert verified.status_code == 200
+    assert store.configured
+    assert store.verify(password)
+    assert password not in store.path.read_text(encoding="utf-8")
+    assert poller.wake_calls == 1
+
+
+def test_new_explicit_disable_flag_blocks_web_authentication(tmp_path, monkeypatch):
+    monkeypatch.setenv("WEB_AUTH_DISABLED", "true")
+    monkeypatch.delenv("WEB_ADMIN_PASSWORD", raising=False)
+    database = LocationDatabase(tmp_path / "locations.db")
+    app = create_app(
+        database,
+        AuthStub(),
+        PollerStub(),
+        WebAdminStore(tmp_path / "session"),
+    )
+    app.config.update(TESTING=True)
+    client = app.test_client()
+
+    status = client.get("/api/auth/status").get_json()
+    assert status["web_auth_enabled"] is False
+    response = client.post(
+        "/api/auth/start",
+        json={"password": "apple-password", "admin_password": "new-admin-password"},
+    )
+    assert response.status_code == 404

@@ -12,9 +12,15 @@ from flask import Flask, jsonify, render_template, request
 
 from .auth import AuthenticationError, ICloudAuth
 from .database import LocationDatabase
+from .web_admin import WebAdminStore
 
 
-def create_app(database: LocationDatabase, auth: ICloudAuth | None = None, poller=None) -> Flask:
+def create_app(
+    database: LocationDatabase,
+    auth: ICloudAuth | None = None,
+    poller=None,
+    admin_store: WebAdminStore | None = None,
+) -> Flask:
     """Create and configure the Flask application."""
     app = Flask(
         __name__,
@@ -22,20 +28,25 @@ def create_app(database: LocationDatabase, auth: ICloudAuth | None = None, polle
         static_folder="../../static",
     )
 
-    web_auth_enabled = os.getenv("WEB_AUTH_ENABLED", "false").lower() in {"1", "true", "yes"}
+    web_auth_disabled = os.getenv("WEB_AUTH_DISABLED", "false").lower() in {"1", "true", "yes"}
+    web_auth_enabled = not web_auth_disabled
     admin_password = os.getenv("WEB_ADMIN_PASSWORD", "")
+    admin_store = admin_store or WebAdminStore()
     lifetime_days = max(1, int(os.getenv("AUTH_SESSION_LIFETIME_DAYS", "90")))
     auth_timeout = max(60, int(os.getenv("WEB_AUTH_FLOW_TIMEOUT_SECONDS", "600")))
-    state = {"started_at": 0.0, "waiting_for_code": False}
+    state = {"started_at": 0.0, "waiting_for_code": False, "pending_admin": None}
     state_lock = RLock()
 
     def require_admin() -> tuple[dict, int] | None:
         if not web_auth_enabled:
             return {"error": "Web authentication is disabled"}, 404
-        if not admin_password:
-            return {"error": "WEB_ADMIN_PASSWORD is not configured"}, 503
         supplied = request.headers.get("X-Admin-Password", "")
-        if not hmac.compare_digest(supplied, admin_password):
+        valid = (
+            hmac.compare_digest(supplied, admin_password)
+            if admin_password
+            else admin_store.verify(supplied)
+        )
+        if not valid:
             return {"error": "Administrator authentication failed"}, 401
         return None
 
@@ -66,7 +77,8 @@ def create_app(database: LocationDatabase, auth: ICloudAuth | None = None, polle
         status = auth.authentication_metadata(lifetime_days)
         status.update(
             web_auth_enabled=web_auth_enabled,
-            admin_password_configured=bool(admin_password),
+            admin_password_configured=bool(admin_password) or admin_store.configured,
+            setup_required=not admin_password and not admin_store.configured,
             username_masked=_mask_username(auth.username),
             lifetime_days=lifetime_days,
         )
@@ -80,12 +92,22 @@ def create_app(database: LocationDatabase, auth: ICloudAuth | None = None, polle
 
     @app.route("/api/auth/start", methods=["POST"])
     def api_auth_start():
-        denied = require_admin()
-        if denied:
-            return jsonify(denied[0]), denied[1]
+        setup_required = not admin_password and not admin_store.configured
+        if not setup_required:
+            denied = require_admin()
+            if denied:
+                return jsonify(denied[0]), denied[1]
+        elif not web_auth_enabled:
+            return jsonify({"error": "Web authentication is disabled"}), 404
         if not auth:
             return jsonify({"error": "Apple ID is not configured"}), 503
         payload = request.get_json(silent=True) or {}
+        pending_admin = None
+        if setup_required:
+            try:
+                pending_admin = admin_store.prepare(str(payload.get("admin_password", "")))
+            except ValueError as exc:
+                return jsonify({"error": str(exc)}), 400
         password = payload.get("password") or auth.password
         if not password:
             return jsonify({"error": "Enter the Apple ID password or configure ICLOUD_PASSWORD"}), 400
@@ -94,26 +116,41 @@ def create_app(database: LocationDatabase, auth: ICloudAuth | None = None, polle
             with state_lock:
                 state["started_at"] = time.monotonic()
                 state["waiting_for_code"] = bool(result["requires_2fa"])
+                state["pending_admin"] = pending_admin
+            if pending_admin and not result["requires_2fa"]:
+                admin_store.save(pending_admin)
+                with state_lock:
+                    state["pending_admin"] = None
             return jsonify(result)
         except AuthenticationError as exc:
             return jsonify({"error": str(exc)}), 400
 
     @app.route("/api/auth/verify", methods=["POST"])
     def api_auth_verify():
-        denied = require_admin()
-        if denied:
-            return jsonify(denied[0]), denied[1]
         payload = request.get_json(silent=True) or {}
         code = str(payload.get("code", "")).strip()
         with state_lock:
             if not state["waiting_for_code"] or time.monotonic() - state["started_at"] > auth_timeout:
                 state["waiting_for_code"] = False
+                state["pending_admin"] = None
                 return jsonify({"error": "The authentication request expired. Start again."}), 409
+            pending_admin = state["pending_admin"]
+        if pending_admin:
+            supplied = request.headers.get("X-Admin-Password", "")
+            if not admin_store.verify(supplied, pending_admin):
+                return jsonify({"error": "Administrator authentication failed"}), 401
+        else:
+            denied = require_admin()
+            if denied:
+                return jsonify(denied[0]), denied[1]
         try:
             auth.complete_web_2fa(code)
             auth.get_devices()
             with state_lock:
                 state["waiting_for_code"] = False
+                state["pending_admin"] = None
+            if pending_admin:
+                admin_store.save(pending_admin)
             if poller:
                 poller.wake()
             return jsonify({"status": "authenticated"})

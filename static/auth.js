@@ -17,16 +17,18 @@
     <div class="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <h2 id="auth-title">Renew Apple session</h2>
       <p id="auth-step">Enter the WebUI administrator password and your Apple ID password.</p>
-      <label>WebUI administrator password<input id="auth-admin" type="password" autocomplete="current-password"></label>
+      <label><span id="auth-admin-label">WebUI administrator password</span><input id="auth-admin" type="password" autocomplete="current-password" minlength="12"></label>
+      <label id="auth-admin-confirm-row" hidden>Confirm new administrator password<input id="auth-admin-confirm" type="password" autocomplete="new-password" minlength="12"></label>
       <label id="apple-password-row">Apple ID password<input id="auth-password" type="password" autocomplete="off"></label>
       <label id="auth-code-row" hidden>Apple verification code<input id="auth-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
       <p id="auth-error" class="auth-error"></p>
-      <p class="auth-security">Passwords and verification codes are sent only to this server, are not written to the database, and must never be exposed through an unprotected internet-facing WebUI. Use HTTPS, a VPN, or an authenticated reverse proxy.</p>
+      <p class="auth-security">Apple passwords and verification codes are sent only to this server and are not stored. During first-run setup, the administrator password is stored only as a salted hash in the persistent session directory. Never expose this WebUI directly to the internet; use HTTPS, a VPN, or an authenticated reverse proxy.</p>
       <div class="auth-actions"><button id="auth-cancel" class="secondary" type="button">Cancel</button><button id="auth-submit" type="button">Start</button></div>
     </div>`;
   document.body.appendChild(modal);
 
   let waitingForCode = false;
+  let setupRequired = false;
   const statusEl = document.getElementById('auth-status');
   const openButton = document.getElementById('auth-open');
   const submitButton = document.getElementById('auth-submit');
@@ -52,8 +54,15 @@
     username.textContent = status.username_masked || '';
     row.append(dot, strong);
     statusEl.append(row, username);
-    openButton.disabled = !status.web_auth_enabled || !status.admin_password_configured;
-    openButton.title = status.web_auth_enabled ? '' : 'Enable WEB_AUTH_ENABLED and configure WEB_ADMIN_PASSWORD';
+    setupRequired = Boolean(status.setup_required);
+    openButton.disabled = !status.web_auth_enabled;
+    openButton.textContent = setupRequired ? 'Set up & re-authenticate' : 'Re-authenticate';
+    openButton.title = status.web_auth_enabled ? '' : 'Web authentication was explicitly disabled';
+    document.getElementById('auth-admin-label').textContent = setupRequired
+      ? 'Create WebUI administrator password'
+      : 'WebUI administrator password';
+    document.getElementById('auth-admin-confirm-row').hidden = !setupRequired;
+    document.getElementById('auth-admin').autocomplete = setupRequired ? 'new-password' : 'current-password';
   }
 
   function adminHeaders() {
@@ -68,9 +77,15 @@
     submitButton.disabled = true;
     try {
       const endpoint = waitingForCode ? '/api/auth/verify' : '/api/auth/start';
+      const adminValue = document.getElementById('auth-admin').value;
+      if (!waitingForCode && setupRequired) {
+        const confirmation = document.getElementById('auth-admin-confirm').value;
+        if (adminValue.length < 12) throw new Error('Use at least 12 characters for the administrator password');
+        if (adminValue !== confirmation) throw new Error('The administrator passwords do not match');
+      }
       const body = waitingForCode
         ? {code: document.getElementById('auth-code').value.trim()}
-        : {password: document.getElementById('auth-password').value};
+        : {password: document.getElementById('auth-password').value, admin_password: adminValue};
       const response = await fetch(endpoint, {method: 'POST', headers: adminHeaders(), body: JSON.stringify(body)});
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Authentication failed');
@@ -85,6 +100,8 @@
         modal.classList.remove('visible');
         document.getElementById('auth-password').value = '';
         document.getElementById('auth-code').value = '';
+        document.getElementById('auth-admin').value = '';
+        document.getElementById('auth-admin-confirm').value = '';
         await loadStatus();
       }
     } catch (error) {

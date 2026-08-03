@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
     WEB_PORT=5000 \
     DATABASE_PATH=/app/data/locations.db \
     AUTH_SESSION_LIFETIME_DAYS=90 \
-    WEB_AUTH_ENABLED=false
+    WEB_AUTH_DISABLED=false
 
 WORKDIR /app
 

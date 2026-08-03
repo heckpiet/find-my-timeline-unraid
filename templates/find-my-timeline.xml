@@ -15,7 +15,7 @@
   <Category>Tools:Utilities</Category>
   <ExtraSearchTerms>Apple Find My location history timeline iCloud tracking map GPS responsive dashboard mobile self-hosted</ExtraSearchTerms>
   <Requires>Requires an Apple ID with two-factor authentication, internet access and persistent Unraid appdata storage. Initial Apple authentication must be completed through the protected WebUI flow or the container console. The WebUI contains sensitive location history and does not provide full access control for the map and APIs. Use only on a trusted local network, through a VPN or behind an authenticated HTTPS reverse proxy.</Requires>
-  <Changes>Version 0.2.1. The poller now recovers after Apple authentication and network failures, resumes immediately after WebUI re-authentication, exposes operational status and uses separate liveness and readiness checks. CI now includes regression, template and container smoke tests.</Changes>
+  <Changes>Version 0.2.2. Browser re-authentication now includes guided first-run administrator setup and no longer remains disabled because an existing container carries the legacy WEB_AUTH_ENABLED=false value. The administrator password is stored only as a salted hash.</Changes>
   <Date>2026-08-03</Date>
   <MinVer>6.12.0</MinVer>
   <License>MIT</License>
@@ -26,6 +26,10 @@
   <Branch>
     <Tag>latest</Tag>
     <TagDescription>Latest stable image and recommended option for automatic updates</TagDescription>
+  </Branch>
+  <Branch>
+    <Tag>0.2.2</Tag>
+    <TagDescription>Version 0.2.2 with guided and persistent WebUI authentication setup</TagDescription>
   </Branch>
   <Branch>
     <Tag>0.2.1</Tag>
@@ -39,8 +43,8 @@
   <Config Name="Database" Target="/app/data" Default="/mnt/user/appdata/find-my-timeline/data" Mode="rw" Description="Persistent directory for the SQLite database containing device and location history. Include this directory in protected backups." Type="Path" Display="always" Required="true" Mask="false"/>
   <Config Name="Apple Session" Target="/root/.find-my-timeline" Default="/mnt/user/appdata/find-my-timeline/session" Mode="rw" Description="Stores reusable Apple session cookies and authentication metadata. Keep this mapping enabled during updates and include it in protected backups." Type="Path" Display="always" Required="true" Mask="false"/>
   <Config Name="Apple ID" Target="ICLOUD_USERNAME" Default="" Description="Email address of the Apple ID whose Find My devices should be recorded. Do not enter the Apple password in this field." Type="Variable" Display="always" Required="true" Mask="false"/>
-  <Config Name="Enable WebUI authentication flow" Target="WEB_AUTH_ENABLED" Default="false" Description="Set to true to allow Apple re-authentication from the WebUI. Requires a WebUI administrator password and protected network access." Type="Variable" Display="always" Required="true" Mask="false"/>
-  <Config Name="WebUI administrator password" Target="WEB_ADMIN_PASSWORD" Default="" Description="Create a long and unique password for starting Apple authentication from the WebUI. This protects only authentication actions, not the location map or APIs." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Disable WebUI authentication flow" Target="WEB_AUTH_DISABLED" Default="false" Description="Leave false to use guided Apple re-authentication. Set true only when browser authentication must be explicitly unavailable." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="WebUI administrator password" Target="WEB_ADMIN_PASSWORD" Default="" Description="Optional environment-managed password. Leave empty to create a persistent hashed administrator password through guided first-run setup." Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="Estimated session lifetime" Target="AUTH_SESSION_LIFETIME_DAYS" Default="90" Description="Estimated Apple session lifetime in days used by the status countdown. Apple can invalidate a session earlier." Type="Variable" Display="advanced" Required="true" Mask="false"/>
   <Config Name="Authentication flow timeout" Target="WEB_AUTH_FLOW_TIMEOUT_SECONDS" Default="600" Description="Maximum number of seconds allowed between starting Apple authentication and entering the verification code." Type="Variable" Display="advanced" Required="true" Mask="false"/>
   <Config Name="Apple ID password" Target="ICLOUD_PASSWORD" Default="" Description="Optional persistent Apple password. Leaving this empty reduces stored secrets and is recommended for most installations." Type="Variable" Display="advanced" Required="false" Mask="true"/>
