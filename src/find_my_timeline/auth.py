@@ -151,8 +151,8 @@ class ICloudAuth:
     def _handle_2sa(self) -> None:
         print("Two-step authentication required.")
         devices = self.api.trusted_devices
-        for index, device in enumerate(devices):
-            print(f"  {index}: {device.get('deviceName', f'Device {index}')}")
+        for index, _device in enumerate(devices):
+            print(f"  {index}: Trusted device {index + 1}")
         device = devices[int(input("Select device: ").strip())]
         if not self.api.send_verification_code(device):
             raise AuthenticationError("Failed to send verification code")
