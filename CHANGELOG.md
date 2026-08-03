@@ -4,6 +4,24 @@ All notable changes to this Unraid-focused fork are documented in this file.
 
 The project follows Semantic Versioning. Release images are published from matching Git tags with `latest`, the plain version such as `0.2.1`, the prefixed version such as `v0.2.1`, and a major/minor tag such as `0.2`.
 
+## [0.2.2] - 2026-08-03
+
+### Fixed
+
+- Prevent the legacy `WEB_AUTH_ENABLED=false` value on existing Unraid containers from disabling the re-authentication button.
+- Replace the disabled button with a guided first-run administrator setup.
+
+### Added
+
+- Persist the first-run WebUI administrator password as a salted PBKDF2-SHA256 hash in the existing session volume.
+- Require successful Apple authentication and verification before committing the first-run administrator credential.
+- Add regression coverage for legacy Unraid configuration migration, password hashing and setup validation.
+
+### Changed
+
+- Browser re-authentication is available by default and can be explicitly disabled with `WEB_AUTH_DISABLED=true`.
+- `WEB_ADMIN_PASSWORD` remains supported for environment-managed installations but is no longer required.
+
 ## [0.2.1] - 2026-08-03
 
 ### Fixed
@@ -79,4 +97,5 @@ The release candidate was tested successfully on Unraid OS 7.3.2 with:
 
 [0.2.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.0
 [0.2.1]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.1
+[0.2.2]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.2
 [0.1.0]: https://github.com/heckpiet/find-my-timeline-unraid/commits/master
