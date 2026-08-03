@@ -2,7 +2,7 @@
 
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
@@ -52,8 +52,11 @@ class LocationDatabase:
     @contextmanager
     def _get_connection(self) -> Iterator[sqlite3.Connection]:
         """Get a database connection with row factory."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=10)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA busy_timeout = 10000")
+        conn.execute("PRAGMA journal_mode = WAL")
         try:
             yield conn
             conn.commit()
@@ -93,6 +96,7 @@ class LocationDatabase:
         battery_level: float | None = None,
     ) -> int:
         """Record a location point for a device. Returns the location ID."""
+        timestamp_value = self._timestamp_value(timestamp)
         with self._get_connection() as conn:
             cursor = conn.execute(
                 """
@@ -108,17 +112,30 @@ class LocationDatabase:
                     horizontal_accuracy,
                     position_type,
                     battery_level,
-                    timestamp,
+                    timestamp_value,
                 ),
             )
             return cursor.lastrowid
 
+    def location_exists(self, device_id: str, timestamp: datetime) -> bool:
+        """Return whether a device location with the normalized timestamp exists."""
+        with self._get_connection() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM locations WHERE device_id = ? AND timestamp = ? LIMIT 1",
+                (device_id, self._timestamp_value(timestamp)),
+            ).fetchone()
+            return row is not None
+
+    @staticmethod
+    def _timestamp_value(timestamp: datetime) -> str:
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        return timestamp.astimezone(timezone.utc).isoformat()
+
     def get_devices(self) -> list[dict]:
         """Get all known devices."""
         with self._get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM devices ORDER BY last_seen DESC"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM devices ORDER BY last_seen DESC").fetchall()
             return [dict(row) for row in rows]
 
     def get_locations(

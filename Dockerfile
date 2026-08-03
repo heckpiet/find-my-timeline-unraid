@@ -1,3 +1,17 @@
+FROM python:3.11-slim AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /build
+
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+COPY templates/ ./templates/
+COPY static/ ./static/
+
+RUN pip wheel --wheel-dir /wheels .
+
 FROM python:3.11-slim
 
 LABEL org.opencontainers.image.title="Find My Timeline"
@@ -6,6 +20,9 @@ LABEL org.opencontainers.image.source="https://github.com/heckpiet/find-my-timel
 LABEL org.opencontainers.image.licenses="MIT"
 
 ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
     WEB_HOST=0.0.0.0 \
     WEB_PORT=5000 \
     DATABASE_PATH=/app/data/locations.db \
@@ -14,12 +31,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
-COPY src/ ./src/
-COPY templates/ ./templates/
-COPY static/ ./static/
-
-RUN pip install --no-cache-dir -e .
+COPY --from=builder /wheels /wheels
+RUN pip install --no-index --find-links=/wheels find-my-timeline && rm -rf /wheels
 
 VOLUME ["/root/.find-my-timeline", "/app/data"]
 EXPOSE 5000

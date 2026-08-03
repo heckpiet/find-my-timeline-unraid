@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
@@ -103,6 +104,7 @@ class ICloudAuth:
         }
         temporary = self._metadata_file.with_suffix(".tmp")
         temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        os.chmod(temporary, 0o600)
         temporary.replace(self._metadata_file)
 
     def authentication_metadata(self, lifetime_days: int = 90) -> dict:
@@ -130,7 +132,9 @@ class ICloudAuth:
                 authenticated_at=authenticated_at.isoformat(),
                 estimated_expires_at=datetime.fromtimestamp(expires_at, timezone.utc).isoformat(),
                 remaining_days=remaining,
-                state="expired" if expires_at <= now else ("warning" if remaining <= 14 else "valid"),
+                state="expired"
+                if expires_at <= now
+                else ("warning" if remaining <= 14 else "valid"),
             )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
             result["state"] = "session_present" if result["session_files_present"] else "missing"
@@ -147,8 +151,8 @@ class ICloudAuth:
     def _handle_2sa(self) -> None:
         print("Two-step authentication required.")
         devices = self.api.trusted_devices
-        for index, device in enumerate(devices):
-            print(f"  {index}: {device.get('deviceName', f'Device {index}')}" )
+        for index, _device in enumerate(devices):
+            print(f"  {index}: Trusted device {index + 1}")
         device = devices[int(input("Select device: ").strip())]
         if not self.api.send_verification_code(device):
             raise AuthenticationError("Failed to send verification code")
@@ -163,15 +167,17 @@ class ICloudAuth:
             devices = []
             for device in self.api.devices:
                 data = device.data
-                devices.append({
-                    "id": data.get("id", "unknown"),
-                    "name": data.get("name", "Unknown Device"),
-                    "device_display_name": data.get("deviceDisplayName", "Unknown"),
-                    "device_class": data.get("deviceClass", "unknown"),
-                    "battery_level": data.get("batteryLevel"),
-                    "battery_status": data.get("batteryStatus"),
-                    "location": device.location,
-                })
+                devices.append(
+                    {
+                        "id": data.get("id", "unknown"),
+                        "name": data.get("name", "Unknown Device"),
+                        "device_display_name": data.get("deviceDisplayName", "Unknown"),
+                        "device_class": data.get("deviceClass", "unknown"),
+                        "battery_level": data.get("batteryLevel"),
+                        "battery_status": data.get("batteryStatus"),
+                        "location": device.location,
+                    }
+                )
             return devices
 
 

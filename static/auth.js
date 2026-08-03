@@ -1,5 +1,5 @@
 (() => {
-  const host = document.getElementById('auth-settings-host');
+  const host = document.getElementById("auth-settings-host");
   if (!host) return;
 
   host.innerHTML = `
@@ -10,8 +10,8 @@
       <button id="auth-open" class="button primary auth-button" type="button">Re-authenticate</button>
     </div>`;
 
-  const modal = document.createElement('div');
-  modal.className = 'auth-modal';
+  const modal = document.createElement("div");
+  modal.className = "auth-modal";
   modal.innerHTML = `
     <div class="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <h2 id="auth-title">Renew Apple session</h2>
@@ -28,83 +28,118 @@
 
   let waitingForCode = false;
   let setupRequired = false;
-  const statusEl = document.getElementById('auth-status');
-  const openButton = document.getElementById('auth-open');
-  const submitButton = document.getElementById('auth-submit');
-  const errorEl = document.getElementById('auth-error');
+  const statusEl = document.getElementById("auth-status");
+  const openButton = document.getElementById("auth-open");
+  const submitButton = document.getElementById("auth-submit");
+  const errorEl = document.getElementById("auth-error");
 
   async function loadStatus() {
-    const response = await fetch('/api/auth/status', {cache: 'no-store'});
+    const response = await fetch("/api/auth/status", { cache: "no-store" });
     const status = await response.json();
     const days = status.remaining_days;
-    const text = status.state === 'valid' ? `Session active · about ${days} days remaining`
-      : status.state === 'warning' ? `Renew soon · about ${days} days remaining`
-      : status.state === 'expired' ? 'Estimated session lifetime reached'
-      : status.state === 'session_present' ? 'Session found · authentication date unknown'
-      : 'No session found';
+    const text =
+      status.state === "valid"
+        ? `Session active · about ${days} days remaining`
+        : status.state === "warning"
+          ? `Renew soon · about ${days} days remaining`
+          : status.state === "expired"
+            ? "Estimated session lifetime reached"
+            : status.state === "session_present"
+              ? "Session found · authentication date unknown"
+              : "No session found";
     statusEl.replaceChildren();
-    const row = document.createElement('div');
-    row.className = 'auth-row';
-    const dot = document.createElement('span');
+    const row = document.createElement("div");
+    row.className = "auth-row";
+    const dot = document.createElement("span");
     dot.className = `auth-dot ${status.state}`;
-    const strong = document.createElement('strong');
+    const strong = document.createElement("strong");
     strong.textContent = text;
-    const username = document.createElement('div');
-    username.textContent = status.username_masked || '';
+    const username = document.createElement("div");
+    username.textContent = status.username_masked || "";
     row.append(dot, strong);
     statusEl.append(row, username);
     setupRequired = Boolean(status.setup_required);
     openButton.disabled = !status.web_auth_enabled;
-    openButton.textContent = setupRequired ? 'Set up & re-authenticate' : 'Re-authenticate';
-    openButton.title = status.web_auth_enabled ? '' : 'Web authentication was explicitly disabled';
-    document.getElementById('auth-admin-label').textContent = setupRequired
-      ? 'Create WebUI administrator password'
-      : 'WebUI administrator password';
-    document.getElementById('auth-admin-confirm-row').hidden = !setupRequired;
-    document.getElementById('auth-admin').autocomplete = setupRequired ? 'new-password' : 'current-password';
-    document.getElementById('auth-title').textContent = setupRequired ? 'Set up Apple access' : 'Renew Apple session';
-    document.getElementById('auth-step').textContent = setupRequired
-      ? 'Create a local administrator password, then authenticate your Apple ID.'
-      : 'Enter the WebUI administrator password and your Apple ID password.';
+    openButton.textContent = setupRequired
+      ? "Set up & re-authenticate"
+      : "Re-authenticate";
+    openButton.title = status.web_auth_enabled
+      ? ""
+      : "Web authentication was explicitly disabled";
+    document.getElementById("auth-admin-label").textContent = setupRequired
+      ? "Create WebUI administrator password"
+      : "WebUI administrator password";
+    document.getElementById("auth-admin-confirm-row").hidden = !setupRequired;
+    document.getElementById("auth-admin").autocomplete = setupRequired
+      ? "new-password"
+      : "current-password";
+    document.getElementById("auth-title").textContent = setupRequired
+      ? "Set up Apple access"
+      : "Renew Apple session";
+    document.getElementById("auth-step").textContent = setupRequired
+      ? "Create a local administrator password, then authenticate your Apple ID."
+      : "Enter the WebUI administrator password and your Apple ID password.";
   }
 
   function adminHeaders() {
-    return {'Content-Type': 'application/json', 'X-Admin-Password': document.getElementById('auth-admin').value};
+    return {
+      "Content-Type": "application/json",
+      "X-Admin-Password": document.getElementById("auth-admin").value,
+    };
   }
 
-  openButton.addEventListener('click', () => { modal.classList.add('visible'); errorEl.textContent = ''; });
-  document.getElementById('auth-cancel').addEventListener('click', () => modal.classList.remove('visible'));
+  openButton.addEventListener("click", () => {
+    modal.classList.add("visible");
+    errorEl.textContent = "";
+  });
+  document
+    .getElementById("auth-cancel")
+    .addEventListener("click", () => modal.classList.remove("visible"));
 
-  submitButton.addEventListener('click', async () => {
-    errorEl.textContent = '';
+  submitButton.addEventListener("click", async () => {
+    errorEl.textContent = "";
     submitButton.disabled = true;
     try {
-      const endpoint = waitingForCode ? '/api/auth/verify' : '/api/auth/start';
-      const adminValue = document.getElementById('auth-admin').value;
+      const endpoint = waitingForCode ? "/api/auth/verify" : "/api/auth/start";
+      const adminValue = document.getElementById("auth-admin").value;
       if (!waitingForCode && setupRequired) {
-        const confirmation = document.getElementById('auth-admin-confirm').value;
-        if (adminValue.length < 12) throw new Error('Use at least 12 characters for the administrator password');
-        if (adminValue !== confirmation) throw new Error('The administrator passwords do not match');
+        const confirmation =
+          document.getElementById("auth-admin-confirm").value;
+        if (adminValue.length < 12)
+          throw new Error(
+            "Use at least 12 characters for the administrator password",
+          );
+        if (adminValue !== confirmation)
+          throw new Error("The administrator passwords do not match");
       }
       const body = waitingForCode
-        ? {code: document.getElementById('auth-code').value.trim()}
-        : {password: document.getElementById('auth-password').value, admin_password: adminValue};
-      const response = await fetch(endpoint, {method: 'POST', headers: adminHeaders(), body: JSON.stringify(body)});
+        ? { code: document.getElementById("auth-code").value.trim() }
+        : {
+            password: document.getElementById("auth-password").value,
+            admin_password: adminValue,
+          };
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: adminHeaders(),
+        body: JSON.stringify(body),
+      });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Authentication failed');
+      if (!response.ok)
+        throw new Error(result.error || "Authentication failed");
       if (result.requires_2fa) {
         waitingForCode = true;
-        document.getElementById('auth-code-row').hidden = false;
-        document.getElementById('apple-password-row').hidden = true;
-        document.getElementById('auth-step').textContent = 'Enter the new code shown on your trusted Apple device.';
-        submitButton.textContent = 'Verify code';
+        document.getElementById("auth-code-row").hidden = false;
+        document.getElementById("apple-password-row").hidden = true;
+        document.getElementById("auth-step").textContent =
+          "Enter the new code shown on your trusted Apple device.";
+        submitButton.textContent = "Verify code";
       } else {
         waitingForCode = false;
-        modal.classList.remove('visible');
-        document.getElementById('auth-password').value = '';
-        document.getElementById('auth-code').value = '';
-        document.getElementById('auth-admin').value = '';
-        document.getElementById('auth-admin-confirm').value = '';
+        modal.classList.remove("visible");
+        document.getElementById("auth-password").value = "";
+        document.getElementById("auth-code").value = "";
+        document.getElementById("auth-admin").value = "";
+        document.getElementById("auth-admin-confirm").value = "";
         await loadStatus();
       }
     } catch (error) {
@@ -114,6 +149,8 @@
     }
   });
 
-  loadStatus().catch(() => { statusEl.textContent = 'Authentication status unavailable'; });
+  loadStatus().catch(() => {
+    statusEl.textContent = "Authentication status unavailable";
+  });
   setInterval(loadStatus, 60000);
 })();

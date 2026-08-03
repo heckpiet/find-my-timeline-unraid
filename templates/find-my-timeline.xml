@@ -15,14 +15,18 @@
   <Category>Tools:Utilities</Category>
   <ExtraSearchTerms>Apple Find My location history timeline iCloud tracking map GPS responsive dashboard mobile self-hosted</ExtraSearchTerms>
   <Requires>Requires an Apple ID with two-factor authentication, internet access and persistent Unraid appdata storage. Initial Apple authentication must be completed through the protected WebUI flow or the container console. The WebUI contains sensitive location history and does not provide full access control for the map and APIs. Use only on a trusted local network, through a VPN or behind an authenticated HTTPS reverse proxy.</Requires>
-  <Changes>Version 0.2.2. Browser re-authentication now includes guided first-run administrator setup and no longer remains disabled because an existing container carries the legacy WEB_AUTH_ENABLED=false value. The administrator password is stored only as a salted hash.</Changes>
+  <Changes>Version 0.3.0 modernizes configuration validation, SQLite reliability, privacy-safe logging, container packaging and CI security checks. The refreshed dashboard adds a dedicated settings view, visible version information, clearer device-filter context, recovery guidance and stronger accessibility.</Changes>
   <Date>2026-08-03</Date>
   <MinVer>6.12.0</MinVer>
   <License>MIT</License>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview.png</Screenshot>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview2.png</Screenshot>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview3.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/dashboard-map.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/settings.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/timeline.png</Screenshot>
   <DefaultTagDescription>Latest stable release</DefaultTagDescription>
+  <Branch>
+    <Tag>0.3.0</Tag>
+    <TagDescription>Version 0.3.0 with modernized internals, CI security checks and a refined dashboard</TagDescription>
+  </Branch>
   <Branch>
     <Tag>latest</Tag>
     <TagDescription>Latest stable image and recommended option for automatic updates</TagDescription>

@@ -23,8 +23,11 @@ jobs:
           python-version: '3.11'
           cache: pip
       - run: python -m pip install '.[test]'
+      - run: python -m pip check
       - run: ruff check .
+      - run: ruff format --check .
       - run: pytest
+      - run: python -m build
       - name: Verify tag matches package version
         id: version
         shell: bash

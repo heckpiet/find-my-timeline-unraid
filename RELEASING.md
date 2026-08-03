@@ -6,9 +6,11 @@ This repository uses `pyproject.toml` as the single source of truth for the appl
 
 Every pull request and push to `master` runs:
 
-1. Ruff and pytest on Python 3.10, 3.11 and 3.12.
-2. XML parsing for the Unraid template.
-3. A Docker build followed by a WebUI-only readiness smoke test.
+1. Ruff linting and formatting plus pytest on Python 3.10, 3.11 and 3.12 with at least 70% coverage.
+2. Source and wheel builds followed by a clean installed-wheel WebUI smoke test.
+3. XML parsing for the Unraid template.
+4. A Docker build followed by readiness and rendered-WebUI smoke tests.
+5. CodeQL analysis for Python and browser JavaScript. Dependabot separately proposes grouped weekly updates.
 
 These jobs never publish an image and require only read access to repository contents.
 
@@ -65,7 +67,7 @@ Then run `Validate` and `Scan` in the Unraid Community Applications submission p
 
 ## Rollback
 
-Unraid users can select a previous immutable image tag instead of `latest`, for example `ghcr.io/heckpiet/find-my-timeline-unraid:0.2.0`.
+Unraid users can select a previous immutable image tag instead of `latest`, for example `ghcr.io/heckpiet/find-my-timeline-unraid:0.2.2`.
 
 Persistent data is stored outside the image. Before rollback, back up `/app/data` and `/root/.find-my-timeline`. Database changes must remain backward-compatible or include explicit migration and rollback notes in `CHANGELOG.md`.
 

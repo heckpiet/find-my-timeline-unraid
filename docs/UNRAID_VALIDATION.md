@@ -67,3 +67,15 @@ The automated Unraid smoke workflow uses an empty temporary data directory and d
 - restart and recreate the container, then confirm the persisted administrator password still works
 - set `WEB_AUTH_DISABLED=true` and confirm browser authentication becomes unavailable
 - confirm successful first-run Apple 2FA wakes the poller without another restart
+
+## Version 0.3.0 release-candidate checks
+
+- upgrade an existing 0.2.2 container while preserving both appdata mappings
+- confirm the settings view reports version 0.3.0 and the configured non-secret runtime values
+- verify invalid ports, intervals and timeouts fail fast with a clear configuration error
+- confirm repeated observations for the same device and timestamp are not inserted twice
+- verify ordinary logs contain neither precise coordinates nor authentication secrets
+- exercise map, timeline, device filter, recovery banner and settings on desktop and mobile widths
+- install the built wheel outside the source tree and confirm templates and static assets render
+- confirm the public image is available for both `linux/amd64` and `linux/arm64`
+- run the manually approved isolated Unraid validation against the exact public 0.3.0 image

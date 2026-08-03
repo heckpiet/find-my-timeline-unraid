@@ -1,4 +1,4 @@
-# WebUI 2.0
+# WebUI 3.0
 
 The redesigned interface keeps the existing Flask and REST architecture while replacing the original fixed desktop map with a responsive dashboard.
 
@@ -13,7 +13,10 @@ The redesigned interface keeps the existing Flask and REST architecture while re
 - improved route rendering and latest-position highlighting
 - mobile bottom navigation and slide-out device panel
 - integrated Apple authentication status and re-authentication controls
-- accessible labels, live regions, visible focus targets and reduced visual clutter
+- dedicated settings and operational-status view with visible application version
+- active device-filter context and one-click reset directly above the map
+- recovery guidance when Apple authentication interrupts polling
+- accessible labels, skip navigation, live regions, visible focus targets and reduced-motion support
 
 ## Technical approach
 

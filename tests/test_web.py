@@ -76,8 +76,15 @@ def test_health_and_system_status(tmp_path, monkeypatch):
 
     index = client.get("/")
     assert index.status_code == 200
-    assert b'Settings &amp; status' in index.data
-    assert f'v{payload["version"]}'.encode() in index.data
+    assert b"Settings &amp; status" in index.data
+    assert f"v{payload['version']}".encode() in index.data
+    assert "frame-ancestors 'none'" in index.headers["Content-Security-Policy"]
+    assert index.headers["Permissions-Policy"] == "camera=(), microphone=(), geolocation=()"
+    assert index.headers["Cache-Control"] == "no-store"
+
+    static_asset = client.get("/static/app.js")
+    assert static_asset.status_code == 200
+    assert static_asset.headers["Cache-Control"].startswith("public, max-age=3600")
 
 
 def test_location_query_rejects_invalid_parameters(tmp_path, monkeypatch):
