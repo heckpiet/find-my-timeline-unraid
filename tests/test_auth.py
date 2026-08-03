@@ -11,9 +11,7 @@ class TrustedDeviceApi:
         return True
 
 
-def test_two_step_authentication_does_not_print_private_device_names(
-    monkeypatch, tmp_path, capsys
-):
+def test_two_step_authentication_does_not_print_private_device_names(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr("find_my_timeline.auth.Path.home", lambda: tmp_path)
     responses = iter(["0", "123456"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(responses))
