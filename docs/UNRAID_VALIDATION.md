@@ -44,3 +44,17 @@
 ## Regression checks for future releases
 
 Future releases should repeat the tests above and additionally verify any new environment variables, database migrations, authentication behavior and rollback instructions.
+
+## Version 0.2.1 release-candidate checks
+
+The following checks are required before tagging 0.2.1 and must not be marked as passed solely by GitHub-hosted CI:
+
+- start with an expired or unavailable Apple session and confirm the poller enters `waiting_for_authentication` without exiting
+- complete WebUI 2FA and confirm a poll starts without restarting the container
+- temporarily interrupt outbound connectivity and confirm polling recovers afterward
+- verify `/health/live` remains healthy while Apple authentication is required
+- verify `/health/ready` reflects SQLite availability
+- confirm `/api/system/status` contains no coordinates, passwords, codes or reusable session material
+- run the manually approved `Unraid validation` workflow against the exact public 0.2.1 image
+
+The automated Unraid smoke workflow uses an empty temporary data directory and does not validate Apple authentication or production persistence. Those remain manual release checks using protected backups and the release-candidate image.

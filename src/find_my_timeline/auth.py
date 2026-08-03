@@ -157,21 +157,22 @@ class ICloudAuth:
             raise AuthenticationError("Invalid verification code")
 
     def get_devices(self) -> list[dict]:
-        if not self.api:
-            raise AuthenticationError("Not authenticated. Call authenticate() first.")
-        devices = []
-        for device in self.api.devices:
-            data = device.data
-            devices.append({
-                "id": data.get("id", "unknown"),
-                "name": data.get("name", "Unknown Device"),
-                "device_display_name": data.get("deviceDisplayName", "Unknown"),
-                "device_class": data.get("deviceClass", "unknown"),
-                "battery_level": data.get("batteryLevel"),
-                "battery_status": data.get("batteryStatus"),
-                "location": device.location,
-            })
-        return devices
+        with self._lock:
+            if not self.api:
+                raise AuthenticationError("Not authenticated. Call authenticate() first.")
+            devices = []
+            for device in self.api.devices:
+                data = device.data
+                devices.append({
+                    "id": data.get("id", "unknown"),
+                    "name": data.get("name", "Unknown Device"),
+                    "device_display_name": data.get("deviceDisplayName", "Unknown"),
+                    "device_class": data.get("deviceClass", "unknown"),
+                    "battery_level": data.get("batteryLevel"),
+                    "battery_status": data.get("batteryStatus"),
+                    "location": device.location,
+                })
+            return devices
 
 
 class AuthenticationError(Exception):

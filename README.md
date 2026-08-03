@@ -47,6 +47,8 @@ The WebUI provides an interactive map, device selection, exact date and time fil
 - expiring in-memory authentication flow
 - security-focused response headers
 - Docker health check
+- self-healing poller with visible operational status
+- separate liveness and readiness health checks
 - documented backup, update and reverse-proxy guidance
 
 ## Requirements
@@ -116,7 +118,7 @@ ghcr.io/heckpiet/find-my-timeline-unraid:latest
 Pinned stable image:
 
 ```text
-ghcr.io/heckpiet/find-my-timeline-unraid:0.2.0
+ghcr.io/heckpiet/find-my-timeline-unraid:0.2.1
 ```
 
 ### Required persistent paths
@@ -144,6 +146,7 @@ Legacy Apple two-step authentication remains available through the CLI only.
 | `ICLOUD_PASSWORD` | unset | Optional persistent password; leaving it unset reduces stored secrets |
 | `POLL_MIN_INTERVAL` | `7` | Minimum interval between Apple location requests in minutes |
 | `POLL_MAX_INTERVAL` | `10` | Maximum interval between Apple location requests in minutes |
+| `AUTH_RETRY_INTERVAL_MINUTES` | `5` | Retry delay after Apple authentication or polling failures |
 | `DATABASE_PATH` | `/app/data/locations.db` | SQLite database path |
 | `WEB_HOST` | `0.0.0.0` | Web server binding inside the container |
 | `WEB_PORT` | `5000` | Internal WebUI port |
@@ -154,6 +157,17 @@ Legacy Apple two-step authentication remains available through the CLI only.
 | `TZ` | `Europe/Berlin` | Container timezone in the Unraid template |
 
 The minimum polling interval must not be greater than the maximum polling interval.
+
+## Poller and health status
+
+The dashboard reports whether the background poller is running, authenticating or waiting for authentication, together with the last successful poll. A failed Apple login no longer terminates the poller permanently. It retries after `AUTH_RETRY_INTERVAL_MINUTES`, and a successful WebUI re-authentication wakes it immediately.
+
+The container exposes two lightweight health endpoints:
+
+- `GET /health/live` confirms that the web process is responding.
+- `GET /health/ready` confirms that SQLite is available.
+
+`GET /api/system/status` provides the database and poller state without returning device locations.
 
 ## Security model
 
@@ -245,7 +259,7 @@ http://your-server:5000
 
 ### The countdown still shows time remaining, but polling fails
 
-The countdown is an estimate based on the last successful authentication. Apple can invalidate sessions earlier. Start a new authentication flow from the WebUI or use the CLI fallback.
+The countdown is an estimate based on the last successful authentication. Apple can invalidate sessions earlier. Check the dashboard poller status. Start a new authentication flow from the WebUI or use the CLI fallback; after successful WebUI authentication the poller retries immediately.
 
 ### Web authentication is unavailable
 
@@ -268,7 +282,9 @@ Check the container logs and verify that the WebUI is listening on port `5000`. 
 
 ## Validation status
 
-Version 0.2.0 was successfully tested on Unraid OS 7.3.2 with:
+Version 0.2.0 was successfully tested on Unraid OS 7.3.2. Version 0.2.1 adds automated container smoke tests and an optional, manually approved Unraid runner workflow. The latter uses temporary data and never mounts production appdata.
+
+The 0.2.0 validation covered:
 
 - public GHCR image pull
 - installation through the Unraid Docker template

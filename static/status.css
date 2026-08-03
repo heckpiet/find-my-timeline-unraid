@@ -1,0 +1,19 @@
+.device-card > span:nth-child(2) {
+  min-width: 0;
+}
+
+.device-name,
+.device-meta {
+  display: block;
+}
+
+.device-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-pill.degraded span {
+  background: var(--warning);
+  box-shadow: 0 0 0 5px rgba(251, 191, 36, 0.09);
+}

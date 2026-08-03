@@ -170,3 +170,11 @@ class LocationDatabase:
 
         with self._get_connection() as conn:
             return conn.execute(query, params).fetchone()[0]
+
+    def is_ready(self) -> bool:
+        """Return whether SQLite can accept a simple query."""
+        try:
+            with self._get_connection() as conn:
+                return conn.execute("SELECT 1").fetchone()[0] == 1
+        except sqlite3.Error:
+            return False

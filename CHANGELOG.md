@@ -2,7 +2,31 @@
 
 All notable changes to this Unraid-focused fork are documented in this file.
 
-The project follows Semantic Versioning. Docker images are published with `latest`, the plain version such as `0.2.0`, the prefixed version such as `v0.2.0`, and a commit-specific `sha-*` tag.
+The project follows Semantic Versioning. Release images are published from matching Git tags with `latest`, the plain version such as `0.2.1`, the prefixed version such as `v0.2.1`, and a major/minor tag such as `0.2`.
+
+## [0.2.1] - 2026-08-03
+
+### Fixed
+
+- Keep the poller alive after Apple authentication and network failures instead of stopping permanently.
+- Wake the poller immediately after successful WebUI re-authentication.
+- Reject invalid date ranges and unbounded location limits with HTTP 400 responses.
+- Prevent device names and model descriptions from visually running together in the desktop sidebar.
+- Escape authentication and timeline values before inserting them into the page.
+
+### Added
+
+- Poller state, last successful poll, next attempt and safe error status through `/api/system/status`.
+- Separate `/health/live` and `/health/ready` endpoints.
+- Regression tests for authentication recovery, health endpoints and API validation.
+- Pull-request CI for Python, the Unraid template and a real container smoke test.
+- Tag-only multi-architecture releases with SBOM and provenance metadata.
+- Optional manually approved smoke testing on an isolated Unraid self-hosted runner.
+
+### Changed
+
+- Serve the WebUI with Waitress instead of Flask's development server.
+- Publish immutable semantic-version images only from matching Git tags.
 
 ## [0.2.0] - 2026-07-27
 
@@ -54,4 +78,5 @@ The release candidate was tested successfully on Unraid OS 7.3.2 with:
 - Basic Docker packaging, SQLite location history, polling service and map-based WebUI.
 
 [0.2.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.0
+[0.2.1]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.1
 [0.1.0]: https://github.com/heckpiet/find-my-timeline-unraid/commits/master

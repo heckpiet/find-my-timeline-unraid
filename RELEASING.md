@@ -1,37 +1,47 @@
 # Release process
 
-This repository uses `pyproject.toml` as the single source of truth for the application version.
+This repository uses `pyproject.toml` as the single source of truth for the application version. Semantic-version image tags are immutable and are published only from a matching Git tag.
 
-## What happens automatically
+## Continuous integration
 
-When a change is merged into `master`, the GitHub Actions workflow:
+Every pull request and push to `master` runs:
 
-1. reads the version from `pyproject.toml`
-2. builds the Docker image
-3. publishes the following GHCR tags
-   - `latest`
-   - the plain version, for example `0.2.0`
-   - the prefixed version, for example `v0.2.0`
-   - a commit-specific `sha-*` tag
-4. creates a GitHub release named after the version if that release does not already exist
+1. Ruff and pytest on Python 3.10, 3.11 and 3.12.
+2. XML parsing for the Unraid template.
+3. A Docker build followed by a WebUI-only readiness smoke test.
 
-Pull requests build the image without publishing it. The workflow can also be started manually from the GitHub Actions page.
+These jobs never publish an image and require only read access to repository contents.
 
 ## Preparing a new version
 
 1. Create a release branch from `master`, for example `release-0.3.0`.
 2. Update the version in `pyproject.toml`.
-3. Add a new section to `CHANGELOG.md` with the release date.
+3. Add a dated section to `CHANGELOG.md`.
 4. Update `<Changes>` and `<Date>` in `templates/find-my-timeline.xml`.
-5. Add the new stable image tag as a `<Branch>` entry in the Unraid template.
-6. Update documentation for new variables, paths, security behavior or migration steps.
-7. Open a pull request and confirm that the Docker build check succeeds.
+5. Add the stable image tag as a `<Branch>` entry in the Unraid template.
+6. Update documentation for new variables, paths, security behavior or migrations.
+7. Open a pull request and require all CI checks to pass.
 8. Merge the pull request into `master`.
-9. Confirm that the workflow publishes all expected GHCR tags and creates the GitHub release.
+9. Create and push the exact matching tag, for example:
+
+   ```bash
+   git switch master
+   git pull --ff-only
+   git tag -s v0.3.0 -m "Find My Timeline v0.3.0"
+   git push origin v0.3.0
+   ```
+
+The release workflow rejects a tag that does not match `pyproject.toml`. A valid tag publishes multi-architecture `linux/amd64` and `linux/arm64` images, SBOM and provenance metadata, then creates the GitHub release. It publishes `latest`, `X.Y.Z`, `vX.Y.Z` and `X.Y`. Existing `X.Y.Z` and `vX.Y.Z` tags must never be rebuilt from an ordinary branch push.
+
+## Isolated Unraid smoke test
+
+The optional `Unraid validation` workflow runs only through `workflow_dispatch` on a self-hosted runner labeled `unraid`. It pulls an explicitly selected public image, mounts a temporary empty data directory, binds only to `127.0.0.1:15010`, verifies readiness and removes the test container and data afterward. It never mounts production appdata or Apple session files.
+
+Because this is a public repository, do not enable self-hosted runners for `pull_request` events. Configure the `unraid-validation` GitHub environment with required reviewer approval and use a dedicated, minimally privileged or ephemeral runner rather than the production Unraid host where possible.
 
 ## Validation before Community Applications submission
 
-Test the exact public image and template that users will receive.
+Test the exact public image and template that users will receive:
 
 ```bash
 docker pull ghcr.io/heckpiet/find-my-timeline-unraid:VERSION
@@ -41,31 +51,23 @@ Verify at least:
 
 - container starts without privileged mode
 - WebUI is reachable through the configured host port
-- health status becomes `healthy`
+- `/health/live` and `/health/ready` succeed
 - Apple authentication and 2FA work
+- authentication recovery resumes polling without a container restart
 - device polling records new locations
-- database contents survive container replacement
-- Apple session data survives container replacement
+- database and Apple session data survive container replacement
 - masked template values remain masked
-- no secrets appear in application logs
+- no secrets or coordinates appear in ordinary logs
+- rollback to the previous image works with a protected database backup
 - the raw template, icon, README and screenshots are publicly reachable
 
 Then run `Validate` and `Scan` in the Unraid Community Applications submission portal.
 
 ## Rollback
 
-Unraid users can select a previous versioned image tag instead of `latest`, for example:
+Unraid users can select a previous immutable image tag instead of `latest`, for example `ghcr.io/heckpiet/find-my-timeline-unraid:0.2.0`.
 
-```text
-ghcr.io/heckpiet/find-my-timeline-unraid:0.2.0
-```
-
-Persistent data is stored outside the image. Before any rollback, back up both mounted directories:
-
-- `/app/data`
-- `/root/.find-my-timeline`
-
-Database schema changes must remain backward-compatible or include an explicit migration and rollback note in `CHANGELOG.md`.
+Persistent data is stored outside the image. Before rollback, back up `/app/data` and `/root/.find-my-timeline`. Database changes must remain backward-compatible or include explicit migration and rollback notes in `CHANGELOG.md`.
 
 ## Package visibility
 
