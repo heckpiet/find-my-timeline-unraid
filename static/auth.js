@@ -1,15 +1,14 @@
 (() => {
-  const sidebar = document.getElementById('sidebar');
-  if (!sidebar) return;
+  const host = document.getElementById('auth-settings-host');
+  if (!host) return;
 
-  const section = document.createElement('div');
-  section.className = 'section';
-  section.innerHTML = `
-    <h2>Apple Authentication</h2>
-    <div id="auth-status" class="auth-status">Loading authentication status…</div>
-    <p class="auth-help" title="Apple may invalidate a session before the estimated date.">The countdown is an estimate. Apple can expire a session earlier.</p>
-    <button id="auth-open" class="auth-button" type="button">Re-authenticate</button>`;
-  sidebar.appendChild(section);
+  host.innerHTML = `
+    <div class="settings-card-heading"><span class="settings-icon">◉</span><div><h3>Apple authentication</h3><p>Renew the Apple session without opening a container console.</p></div></div>
+    <div class="auth-settings-body">
+      <div><div id="auth-status" class="auth-status">Loading authentication status…</div>
+      <p class="auth-help" title="Apple may invalidate a session before the estimated date.">The countdown is an estimate; a successful poll is authoritative.</p></div>
+      <button id="auth-open" class="button primary auth-button" type="button">Re-authenticate</button>
+    </div>`;
 
   const modal = document.createElement('div');
   modal.className = 'auth-modal';
@@ -63,6 +62,10 @@
       : 'WebUI administrator password';
     document.getElementById('auth-admin-confirm-row').hidden = !setupRequired;
     document.getElementById('auth-admin').autocomplete = setupRequired ? 'new-password' : 'current-password';
+    document.getElementById('auth-title').textContent = setupRequired ? 'Set up Apple access' : 'Renew Apple session';
+    document.getElementById('auth-step').textContent = setupRequired
+      ? 'Create a local administrator password, then authenticate your Apple ID.'
+      : 'Enter the WebUI administrator password and your Apple ID password.';
   }
 
   function adminHeaders() {

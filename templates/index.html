@@ -22,6 +22,7 @@
       <nav class="nav-tabs" aria-label="Views">
         <button class="nav-tab active" data-view="map"><span>⌖</span> Map</button>
         <button class="nav-tab" data-view="timeline"><span>≡</span> Timeline</button>
+        <button class="nav-tab" data-view="settings"><span>⚙</span> Settings</button>
       </nav>
 
       <section class="section device-section">
@@ -51,6 +52,11 @@
         <div class="mini-stat"><span>Last refresh</span><strong id="last-refresh">—</strong></div>
         <div class="mini-stat"><span>Visible points</span><strong id="visible-points">0</strong></div>
       </section>
+
+      <footer class="sidebar-footer">
+        <span>Find My Timeline</span>
+        <strong>v{{ app_version }}</strong>
+      </footer>
     </aside>
 
     <main class="main-content">
@@ -87,13 +93,64 @@
           <div id="timeline-list" class="timeline-list"><div class="empty-inline">Select a device or load a time range.</div></div>
         </div>
       </section>
+
+      <section id="settings-view" class="workspace">
+        <div class="settings-layout">
+          <header class="settings-intro">
+            <div><span class="eyebrow">Application control centre</span><h2>Settings &amp; status</h2></div>
+          </header>
+
+          <div class="settings-grid">
+            <article class="settings-card settings-card-wide">
+              <div class="settings-card-heading"><span class="settings-icon">◎</span><div><h3>System status</h3><p>Live health and background polling state.</p></div></div>
+              <dl class="settings-values">
+                <div><dt>Application version</dt><dd id="settings-version">v{{ app_version }}</dd></div>
+                <div><dt>Database</dt><dd id="settings-database">Checking…</dd></div>
+                <div><dt>Poller</dt><dd id="settings-poller">Checking…</dd></div>
+                <div><dt>Last successful poll</dt><dd id="settings-last-poll">—</dd></div>
+              </dl>
+            </article>
+
+            <article class="settings-card">
+              <div class="settings-card-heading"><span class="settings-icon">↻</span><div><h3>Polling</h3><p>Read-only values from the container environment.</p></div></div>
+              <dl class="settings-values compact">
+                <div><dt>Interval</dt><dd id="settings-poll-interval">—</dd></div>
+                <div><dt>Failure retry</dt><dd id="settings-retry">—</dd></div>
+                <div><dt>Timezone</dt><dd id="settings-timezone">—</dd></div>
+              </dl>
+              <p class="settings-note">Change these values in the Unraid Docker template, then recreate the container.</p>
+            </article>
+
+            <article class="settings-card">
+              <div class="settings-card-heading"><span class="settings-icon">⌁</span><div><h3>Health endpoints</h3><p>Use these endpoints for monitoring and diagnostics.</p></div></div>
+              <div class="endpoint-list">
+                <a href="/health/live"><code>/health/live</code><span>Process liveness</span></a>
+                <a href="/health/ready"><code>/health/ready</code><span>Database readiness</span></a>
+              </div>
+            </article>
+
+            <div id="auth-settings-host" class="settings-card settings-card-wide">
+              <div class="settings-card-heading"><span class="settings-icon">◉</span><div><h3>Apple authentication</h3><p>Apple ID is not configured for this process.</p></div></div>
+            </div>
+
+            <article class="settings-card settings-card-wide security-card">
+              <div class="settings-card-heading"><span class="settings-icon">◇</span><div><h3>Privacy &amp; access</h3><p>Location history and Apple sessions require careful protection.</p></div></div>
+              <ul class="security-list">
+                <li>Keep the WebUI on a trusted network or behind an authenticated HTTPS proxy.</li>
+                <li>Back up both persistent appdata paths and protect those backups.</li>
+                <li>Use a unique WebUI administrator password that is different from the Apple ID password.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
     </main>
 
     <nav class="mobile-nav" aria-label="Mobile navigation">
       <button class="mobile-nav-item active" data-view="map"><span>⌖</span>Map</button>
       <button class="mobile-nav-item" data-view="timeline"><span>≡</span>Timeline</button>
       <button id="mobile-devices" class="mobile-nav-item"><span>▣</span>Devices</button>
-      <button id="mobile-refresh" class="mobile-nav-item"><span>↻</span>Refresh</button>
+      <button class="mobile-nav-item" data-view="settings"><span>⚙</span>Settings</button>
     </nav>
     <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>

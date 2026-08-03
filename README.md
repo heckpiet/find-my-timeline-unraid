@@ -25,6 +25,10 @@ Self-hosted Apple Find My location history for Unraid. It records device positio
 
 ![Find My Timeline first-run authentication setup](docs/images/authentication-setup.png)
 
+### Settings and system status
+
+![Find My Timeline settings and system status](docs/images/settings.png)
+
 The screenshots use synthetic demonstration devices and locations; no production location history is included in the repository.
 
 ## What this project does
@@ -57,6 +61,7 @@ The WebUI provides an interactive map, device selection, exact date and time fil
 - security-focused response headers
 - Docker health check
 - self-healing poller with visible operational status
+- dedicated settings view with application version, health, polling and authentication status
 - separate liveness and readiness health checks
 - documented backup, update and reverse-proxy guidance
 

@@ -35,8 +35,13 @@
   function switchView(view) {
     document.querySelectorAll('.workspace').forEach((el) => el.classList.toggle('active', el.id === `${view}-view`));
     document.querySelectorAll('[data-view]').forEach((el) => el.classList.toggle('active', el.dataset.view === view));
-    $('page-title').textContent = view === 'map' ? 'Overview' : 'Timeline';
+    const titles = { map: 'Overview', timeline: 'Timeline', settings: 'Settings' };
+    $('page-title').textContent = titles[view] || 'Overview';
+    $('fit-map').hidden = view !== 'map';
+    document.querySelector('.metric-grid').hidden = view === 'settings';
+    document.body.classList.toggle('settings-active', view === 'settings');
     if (view === 'map') setTimeout(() => map.invalidateSize(), 80);
+    closeSidebar();
   }
 
   function closeSidebar() {
@@ -159,6 +164,19 @@
     $('poller-success').textContent = poller.last_success_at ? fmtRelative(poller.last_success_at) : 'Never';
     $('live-status').lastChild.textContent = ` ${label}`;
     $('live-status').classList.toggle('degraded', poller.state === 'waiting_for_authentication' || poller.state === 'stopped');
+    $('settings-version').textContent = `v${system.version || 'unknown'}`;
+    $('settings-database').textContent = system.database_ready ? 'Ready' : 'Unavailable';
+    $('settings-database').className = system.database_ready ? 'value-good' : 'value-warning';
+    $('settings-poller').textContent = label;
+    $('settings-last-poll').textContent = poller.last_success_at ? fmtDate(poller.last_success_at) : 'Never';
+    const configuration = system.configuration || {};
+    $('settings-poll-interval').textContent = configuration.poll_min_interval == null
+      ? '—'
+      : `${configuration.poll_min_interval}–${configuration.poll_max_interval} min`;
+    $('settings-retry').textContent = configuration.auth_retry_interval == null
+      ? '—'
+      : `${configuration.auth_retry_interval} min`;
+    $('settings-timezone').textContent = configuration.timezone || '—';
   }
 
   async function loadStatsAndDevices() {
@@ -239,7 +257,6 @@
     loadLocations();
   });
   $('refresh-btn').addEventListener('click', () => refreshAll(true));
-  $('mobile-refresh').addEventListener('click', () => refreshAll(true));
   $('fit-map').addEventListener('click', () => state.bounds.length && map.fitBounds(state.bounds, { padding: [40, 40], maxZoom: 15 }));
   $('menu-button').addEventListener('click', () => { $('sidebar').classList.add('open'); $('sidebar-backdrop').classList.add('visible'); });
   $('mobile-devices').addEventListener('click', () => { $('sidebar').classList.add('open'); $('sidebar-backdrop').classList.add('visible'); });
