@@ -17,6 +17,10 @@ The project follows Semantic Versioning. Release images are published from match
 - Improve navigation, timeline buttons, form controls and keyboard focus styling.
 - Refresh the README and screenshots with synthetic demonstration data.
 
+### Fixed
+
+- Include WebUI templates and static assets in built Python wheels so the installed package can render the dashboard outside an editable checkout.
+
 ## [0.2.2] - 2026-08-03
 
 ### Fixed

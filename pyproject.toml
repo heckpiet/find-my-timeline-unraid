@@ -47,7 +47,13 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/find_my_timeline"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"templates" = "find_my_timeline/templates"
+"static" = "find_my_timeline/static"
+
 [tool.hatch.build.targets.sdist]
 include = [
     "/src",
+    "/templates",
+    "/static",
 ]

@@ -6,6 +6,7 @@ import hmac
 import os
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from threading import RLock
 
 from flask import Flask, jsonify, render_template, request
@@ -23,10 +24,12 @@ def create_app(
     admin_store: WebAdminStore | None = None,
 ) -> Flask:
     """Create and configure the Flask application."""
+    package_root = Path(__file__).resolve().parent
+    asset_root = package_root if (package_root / "templates").is_dir() else package_root.parents[1]
     app = Flask(
         __name__,
-        template_folder="../../templates",
-        static_folder="../../static",
+        template_folder=str(asset_root / "templates"),
+        static_folder=str(asset_root / "static"),
     )
 
     web_auth_disabled = os.getenv("WEB_AUTH_DISABLED", "false").lower() in {"1", "true", "yes"}
