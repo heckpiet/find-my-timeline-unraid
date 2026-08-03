@@ -16,7 +16,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, unraid]
     environment: unraid-validation
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate approved image on Unraid
         env:
           IMAGE: ${{ inputs.image }}
