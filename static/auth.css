@@ -12,6 +12,8 @@
 .auth-dialog h2 { margin-bottom:8px; }
 .auth-dialog p { color:#cbd5e1; font-size:.88rem; margin-bottom:12px; }
 .auth-dialog label { display:block; margin-top:10px; }
+.auth-dialog input { width:100%; margin-top:6px; padding:10px 12px; border:1px solid #334155; border-radius:9px; background:#0c1425; color:#fff; }
+.auth-dialog input:focus { border-color:#38bdf8; outline:2px solid rgba(56,189,248,.2); outline-offset:1px; }
 .auth-actions { display:flex; gap:10px; margin-top:16px; }
 .auth-actions button { flex:1; }
 .auth-actions .secondary { background:#334155; color:#fff; }

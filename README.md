@@ -1,6 +1,13 @@
 # Find My Timeline for Unraid
 
-Self-hosted Apple Find My location history for Unraid, with an interactive timeline, local SQLite storage, Docker packaging and optional browser-based Apple re-authentication.
+[![CI](https://github.com/heckpiet/find-my-timeline-unraid/actions/workflows/ci.yml/badge.svg)](https://github.com/heckpiet/find-my-timeline-unraid/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/heckpiet/find-my-timeline-unraid)](https://github.com/heckpiet/find-my-timeline-unraid/releases/latest)
+[![Container](https://img.shields.io/badge/GHCR-amd64%20%7C%20arm64-2496ED?logo=docker&logoColor=white)](https://github.com/heckpiet/find-my-timeline-unraid/pkgs/container/find-my-timeline-unraid)
+[![License](https://img.shields.io/github/license/heckpiet/find-my-timeline-unraid)](LICENSE)
+
+Self-hosted Apple Find My location history for Unraid. It records device positions in a local SQLite database and turns them into an interactive route map and chronological timeline.
+
+**Current stable release:** `0.2.2` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
 
 > Unofficial Unraid-focused fork. This project is not affiliated with or endorsed by Apple or Lime Technology.
 
@@ -8,15 +15,17 @@ Self-hosted Apple Find My location history for Unraid, with an interactive timel
 
 ### Dashboard and route map
 
-![Find My Timeline dashboard](https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview.png)
-
-### Location details
-
-![Find My Timeline location details](https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview2.png)
+![Find My Timeline dashboard with route map](docs/images/dashboard-map.png)
 
 ### Chronological timeline
 
-![Find My Timeline device timeline](https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview3.png)
+![Find My Timeline chronological device timeline](docs/images/timeline.png)
+
+### Guided Apple re-authentication
+
+![Find My Timeline first-run authentication setup](docs/images/authentication-setup.png)
+
+The screenshots use synthetic demonstration devices and locations; no production location history is included in the repository.
 
 ## What this project does
 
@@ -41,7 +50,7 @@ The WebUI provides an interactive map, device selection, exact date and time fil
 - responsive desktop and mobile WebUI
 - device cards, status metrics and exact date/time search
 - Apple session-status card and estimated re-authentication countdown
-- optional browser-based Apple 2FA workflow
+- guided browser-based Apple 2FA and first-run administrator setup
 - separate administrator password for authentication actions
 - masked Apple ID display
 - expiring in-memory authentication flow
@@ -71,10 +80,10 @@ Do not expose the WebUI directly to the public internet. Use a trusted local net
 1. Install **Find My Timeline** through Community Applications.
 2. Enter your Apple ID email address in `ICLOUD_USERNAME`.
 3. Keep both persistent appdata paths enabled.
-4. Choose one of the authentication methods below.
-5. Restart the container after a successful Apple authentication.
-6. Open the WebUI on the configured host port, normally port `5000`.
-7. Confirm that devices appear and the container health status becomes `healthy`.
+4. Open the WebUI on the configured host port, normally port `5000`.
+5. Complete the recommended WebUI authentication below.
+6. Confirm that the poller resumes and devices appear.
+7. Confirm that the container health status becomes `healthy`.
 
 ### Recommended WebUI authentication
 
@@ -280,7 +289,9 @@ Check the container logs and verify that the WebUI is listening on port `5000`. 
 
 ## Validation status
 
-Version 0.2.0 was successfully tested on Unraid OS 7.3.2. Versions 0.2.1 and 0.2.2 add automated container smoke tests, self-healing polling and first-run WebUI administrator setup. The optional, manually approved Unraid runner workflow uses temporary data and never mounts production appdata.
+The current `0.2.2` release is verified by the release pipeline before publication. CI covers Python 3.10, 3.11 and 3.12, linting, tests with a coverage threshold, the Unraid XML template, and a real container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
+
+The optional, manually approved Unraid runner workflow uses temporary data and never mounts production appdata. The original end-to-end Unraid validation was performed on Unraid OS 7.3.2.
 
 The 0.2.0 validation covered:
 
@@ -295,6 +306,18 @@ The 0.2.0 validation covered:
 - Docker health check
 
 More details are available in [`docs/UNRAID_VALIDATION.md`](docs/UNRAID_VALIDATION.md).
+
+## Development and CI
+
+Create a virtual environment and run the same core checks used by CI:
+
+```bash
+python -m pip install -e '.[test]'
+ruff check .
+pytest
+```
+
+Pull requests run the Python test matrix, linting, template validation and container smoke test. A version tag such as `v0.2.2` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. See [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
 
 ## Support and contributions
 
