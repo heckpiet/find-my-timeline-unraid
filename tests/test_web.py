@@ -40,6 +40,10 @@ class AuthStub:
 def make_client(tmp_path, monkeypatch, with_auth=False):
     monkeypatch.delenv("WEB_AUTH_DISABLED", raising=False)
     monkeypatch.setenv("WEB_ADMIN_PASSWORD", "test-admin-password" if with_auth else "")
+    monkeypatch.setenv("POLL_MIN_INTERVAL", "7")
+    monkeypatch.setenv("POLL_MAX_INTERVAL", "10")
+    monkeypatch.setenv("AUTH_RETRY_INTERVAL_MINUTES", "5")
+    monkeypatch.setenv("TZ", "Europe/Berlin")
     database = LocationDatabase(tmp_path / "locations.db")
     poller = PollerStub()
     app = create_app(
@@ -59,7 +63,21 @@ def test_health_and_system_status(tmp_path, monkeypatch):
     assert client.get("/health/ready").status_code == 200
     response = client.get("/api/system/status")
     assert response.status_code == 200
-    assert response.get_json()["poller"]["state"] == "running"
+    payload = response.get_json()
+    assert payload["poller"]["state"] == "running"
+    assert payload["version"]
+    assert payload["configuration"] == {
+        "poll_min_interval": 7,
+        "poll_max_interval": 10,
+        "auth_retry_interval": 5,
+        "timezone": "Europe/Berlin",
+        "web_auth_enabled": True,
+    }
+
+    index = client.get("/")
+    assert index.status_code == 200
+    assert b'Settings &amp; status' in index.data
+    assert f'v{payload["version"]}'.encode() in index.data
 
 
 def test_location_query_rejects_invalid_parameters(tmp_path, monkeypatch):

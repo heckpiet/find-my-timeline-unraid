@@ -6,10 +6,12 @@ import hmac
 import os
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from threading import RLock
 
 from flask import Flask, jsonify, render_template, request
 
+from . import __version__
 from .auth import AuthenticationError, ICloudAuth
 from .database import LocationDatabase
 from .web_admin import WebAdminStore
@@ -22,10 +24,12 @@ def create_app(
     admin_store: WebAdminStore | None = None,
 ) -> Flask:
     """Create and configure the Flask application."""
+    package_root = Path(__file__).resolve().parent
+    asset_root = package_root if (package_root / "templates").is_dir() else package_root.parents[1]
     app = Flask(
         __name__,
-        template_folder="../../templates",
-        static_folder="../../static",
+        template_folder=str(asset_root / "templates"),
+        static_folder=str(asset_root / "static"),
     )
 
     web_auth_disabled = os.getenv("WEB_AUTH_DISABLED", "false").lower() in {"1", "true", "yes"}
@@ -61,7 +65,7 @@ def create_app(
     @app.route("/")
     def index():
         """Main map view with an optional injected authentication widget."""
-        html = render_template("index.html")
+        html = render_template("index.html", app_version=__version__)
         if auth:
             assets = (
                 '<link rel="stylesheet" href="/static/auth.css">\n'
@@ -218,8 +222,16 @@ def create_app(
     def api_system_status():
         """Expose operational state without returning location coordinates."""
         return jsonify({
+            "version": __version__,
             "database_ready": database.is_ready(),
             "poller": poller.status() if poller else {"state": "not_running"},
+            "configuration": {
+                "poll_min_interval": int(os.getenv("POLL_MIN_INTERVAL", "7")),
+                "poll_max_interval": int(os.getenv("POLL_MAX_INTERVAL", "10")),
+                "auth_retry_interval": int(os.getenv("AUTH_RETRY_INTERVAL_MINUTES", "5")),
+                "timezone": os.getenv("TZ", "Europe/Berlin"),
+                "web_auth_enabled": web_auth_enabled,
+            },
         })
 
     @app.route("/health/live")

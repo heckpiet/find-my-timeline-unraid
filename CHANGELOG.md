@@ -4,6 +4,23 @@ All notable changes to this Unraid-focused fork are documented in this file.
 
 The project follows Semantic Versioning. Release images are published from matching Git tags with `latest`, the plain version such as `0.2.1`, the prefixed version such as `v0.2.1`, and a major/minor tag such as `0.2`.
 
+## [Unreleased]
+
+### Added
+
+- Add a dedicated responsive settings view for application health, polling configuration, health endpoints, privacy guidance and Apple authentication.
+- Show the running application version in the sidebar and system status API.
+
+### Changed
+
+- Move Apple re-authentication from the crowded device sidebar into the settings view.
+- Improve navigation, timeline buttons, form controls and keyboard focus styling.
+- Refresh the README and screenshots with synthetic demonstration data.
+
+### Fixed
+
+- Include WebUI templates and static assets in built Python wheels so the installed package can render the dashboard outside an editable checkout.
+
 ## [0.2.2] - 2026-08-03
 
 ### Fixed
