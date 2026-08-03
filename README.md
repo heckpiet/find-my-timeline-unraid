@@ -7,7 +7,7 @@
 
 Self-hosted Apple Find My location history for Unraid. It records device positions in a local SQLite database and turns them into an interactive route map and chronological timeline.
 
-**Current stable release:** `0.2.2` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
+**Current stable release:** `0.3.0` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
 
 > Unofficial Unraid-focused fork. This project is not affiliated with or endorsed by Apple or Lime Technology.
 
@@ -133,7 +133,7 @@ ghcr.io/heckpiet/find-my-timeline-unraid:latest
 Pinned stable image:
 
 ```text
-ghcr.io/heckpiet/find-my-timeline-unraid:0.2.2
+ghcr.io/heckpiet/find-my-timeline-unraid:0.3.0
 ```
 
 ### Required persistent paths
@@ -294,7 +294,7 @@ Check the container logs and verify that the WebUI is listening on port `5000`. 
 
 ## Validation status
 
-The current `0.2.2` release is verified by the release pipeline before publication. CI covers Python 3.10, 3.11 and 3.12, linting, tests with a coverage threshold, the Unraid XML template, and a real container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
+The current `0.3.0` release is verified by the release pipeline before publication. CI covers Python 3.10, 3.11 and 3.12, linting and formatting, tests with a 70% coverage threshold, built-wheel installation, the Unraid XML template, CodeQL analysis, and a real rendered-WebUI container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
 
 The optional, manually approved Unraid runner workflow uses temporary data and never mounts production appdata. The original end-to-end Unraid validation was performed on Unraid OS 7.3.2.
 
@@ -322,7 +322,7 @@ ruff check .
 pytest
 ```
 
-Pull requests run the Python test matrix, linting, template validation and container smoke test. A version tag such as `v0.2.2` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. See [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
+Pull requests run the Python test matrix, linting and formatting, package installation, CodeQL, template validation and a rendered-WebUI container smoke test. A version tag such as `v0.3.0` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. Dependabot proposes grouped weekly dependency updates. See [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
 
 ## Support and contributions
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hmac
-import os
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -13,6 +12,7 @@ from flask import Flask, jsonify, render_template, request
 
 from . import __version__
 from .auth import AuthenticationError, ICloudAuth
+from .config import AppConfig
 from .database import LocationDatabase
 from .web_admin import WebAdminStore
 
@@ -22,6 +22,7 @@ def create_app(
     auth: ICloudAuth | None = None,
     poller=None,
     admin_store: WebAdminStore | None = None,
+    config: AppConfig | None = None,
 ) -> Flask:
     """Create and configure the Flask application."""
     package_root = Path(__file__).resolve().parent
@@ -32,12 +33,12 @@ def create_app(
         static_folder=str(asset_root / "static"),
     )
 
-    web_auth_disabled = os.getenv("WEB_AUTH_DISABLED", "false").lower() in {"1", "true", "yes"}
-    web_auth_enabled = not web_auth_disabled
-    admin_password = os.getenv("WEB_ADMIN_PASSWORD", "")
+    runtime_config = config or AppConfig.from_env()
+    web_auth_enabled = not runtime_config.web_auth_disabled
+    admin_password = runtime_config.web_admin_password
     admin_store = admin_store or WebAdminStore()
-    lifetime_days = max(1, int(os.getenv("AUTH_SESSION_LIFETIME_DAYS", "90")))
-    auth_timeout = max(60, int(os.getenv("WEB_AUTH_FLOW_TIMEOUT_SECONDS", "600")))
+    lifetime_days = runtime_config.auth_session_lifetime_days
+    auth_timeout = runtime_config.web_auth_flow_timeout_seconds
     state = {"started_at": 0.0, "waiting_for_code": False, "pending_admin": None}
     state_lock = RLock()
 
@@ -59,7 +60,23 @@ def create_app(
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
-        response.headers.setdefault("Cache-Control", "no-store")
+        response.headers.setdefault(
+            "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
+        )
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self' https://unpkg.com; "
+            "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+            "img-src 'self' data: https://*.tile.openstreetmap.org; "
+            "connect-src 'self'; font-src 'self'; object-src 'none'; "
+            "base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+        )
+        cache_policy = (
+            "public, max-age=3600, stale-while-revalidate=86400"
+            if request.endpoint == "static"
+            else "no-store"
+        )
+        response.headers["Cache-Control"] = cache_policy
         return response
 
     @app.route("/")
@@ -114,7 +131,9 @@ def create_app(
                 return jsonify({"error": str(exc)}), 400
         password = payload.get("password") or auth.password
         if not password:
-            return jsonify({"error": "Enter the Apple ID password or configure ICLOUD_PASSWORD"}), 400
+            return jsonify(
+                {"error": "Enter the Apple ID password or configure ICLOUD_PASSWORD"}
+            ), 400
         try:
             result = auth.begin_web_authentication(password)
             with state_lock:
@@ -134,7 +153,10 @@ def create_app(
         payload = request.get_json(silent=True) or {}
         code = str(payload.get("code", "")).strip()
         with state_lock:
-            if not state["waiting_for_code"] or time.monotonic() - state["started_at"] > auth_timeout:
+            if (
+                not state["waiting_for_code"]
+                or time.monotonic() - state["started_at"] > auth_timeout
+            ):
                 state["waiting_for_code"] = False
                 state["pending_admin"] = None
                 return jsonify({"error": "The authentication request expired. Start again."}), 409
@@ -185,12 +207,14 @@ def create_app(
             return jsonify({"error": "start and end must be ISO 8601 date-time values"}), 400
         if start_time and end_time and start_time > end_time:
             return jsonify({"error": "start must not be later than end"}), 400
-        return jsonify(database.get_locations(
-            device_id=device_id,
-            start_time=start_time,
-            end_time=end_time,
-            limit=limit,
-        ))
+        return jsonify(
+            database.get_locations(
+                device_id=device_id,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+            )
+        )
 
     @app.route("/api/locations/latest")
     def api_latest_locations():
@@ -206,33 +230,34 @@ def create_app(
     @app.route("/api/stats")
     def api_stats():
         devices = database.get_devices()
-        return jsonify({
-            "total_devices": len(devices),
-            "total_locations": database.get_location_count(),
-            "devices": [{
-                "id": device["id"],
-                "name": device["name"],
-                "location_count": database.get_location_count(device["id"]),
-                "last_seen": device["last_seen"],
-                "latest_location": database.get_latest_location(device["id"]),
-            } for device in devices],
-        })
+        return jsonify(
+            {
+                "total_devices": len(devices),
+                "total_locations": database.get_location_count(),
+                "devices": [
+                    {
+                        "id": device["id"],
+                        "name": device["name"],
+                        "location_count": database.get_location_count(device["id"]),
+                        "last_seen": device["last_seen"],
+                        "latest_location": database.get_latest_location(device["id"]),
+                    }
+                    for device in devices
+                ],
+            }
+        )
 
     @app.route("/api/system/status")
     def api_system_status():
         """Expose operational state without returning location coordinates."""
-        return jsonify({
-            "version": __version__,
-            "database_ready": database.is_ready(),
-            "poller": poller.status() if poller else {"state": "not_running"},
-            "configuration": {
-                "poll_min_interval": int(os.getenv("POLL_MIN_INTERVAL", "7")),
-                "poll_max_interval": int(os.getenv("POLL_MAX_INTERVAL", "10")),
-                "auth_retry_interval": int(os.getenv("AUTH_RETRY_INTERVAL_MINUTES", "5")),
-                "timezone": os.getenv("TZ", "Europe/Berlin"),
-                "web_auth_enabled": web_auth_enabled,
-            },
-        })
+        return jsonify(
+            {
+                "version": __version__,
+                "database_ready": database.is_ready(),
+                "poller": poller.status() if poller else {"state": "not_running"},
+                "configuration": runtime_config.public_web_settings(),
+            }
+        )
 
     @app.route("/health/live")
     def health_live():

@@ -28,9 +28,7 @@ class WebAdminStore:
         if len(password) < 12:
             raise ValueError("The WebUI administrator password must contain at least 12 characters")
         salt = secrets.token_bytes(16)
-        digest = hashlib.pbkdf2_hmac(
-            "sha256", password.encode("utf-8"), salt, self.iterations
-        )
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, self.iterations)
         return {
             "algorithm": "pbkdf2-sha256",
             "iterations": self.iterations,

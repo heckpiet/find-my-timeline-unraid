@@ -18,6 +18,21 @@
 [hidden] {
   display: none !important;
 }
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 5000;
+  transform: translateY(-160%);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #06121b;
+  font-weight: 700;
+}
+.skip-link:focus {
+  transform: none;
+}
 body,
 html {
   margin: 0;
@@ -37,6 +52,13 @@ input {
 }
 button {
   color: inherit;
+}
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 3px;
 }
 .app-shell {
   display: grid;
@@ -341,6 +363,36 @@ button {
   align-items: center;
   gap: 9px;
 }
+.system-banner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 15px;
+  background: linear-gradient(
+    135deg,
+    rgba(120, 53, 15, 0.28),
+    rgba(69, 26, 3, 0.18)
+  );
+}
+.system-banner-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(251, 191, 36, 0.16);
+  color: var(--warning);
+  font-weight: 800;
+}
+.system-banner p {
+  margin: 3px 0 0;
+  color: #cbd5e1;
+  font-size: 12px;
+}
 .live-pill {
   display: inline-flex;
   align-items: center;
@@ -387,6 +439,30 @@ button {
 .metric-card span,
 .metric-card strong {
   display: block;
+}
+.filter-summary {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(9, 14, 26, 0.9);
+  backdrop-filter: blur(14px);
+}
+.filter-summary strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+}
+.button.compact {
+  padding: 7px 10px;
+  font-size: 11px;
 }
 .metric-card div > span {
   color: var(--muted);
@@ -800,6 +876,16 @@ button {
   .topbar {
     align-items: flex-start;
   }
+  .system-banner {
+    grid-template-columns: auto 1fr;
+  }
+  .system-banner .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .filter-summary {
+    align-items: flex-start;
+  }
   .topbar h1 {
     font-size: 23px;
   }
@@ -881,5 +967,16 @@ button {
   }
   .topbar-actions .button.primary {
     padding: 9px 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

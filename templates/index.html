@@ -1,162 +1,419 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1020">
-  <title>Find My Timeline</title>
-  <link rel="preconnect" href="https://unpkg.com">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/static/app.css">
-  <link rel="stylesheet" href="/static/status.css">
-</head>
-<body>
-  <div class="app-shell">
-    <aside id="sidebar" class="sidebar" aria-label="Primary navigation">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">⌖</div>
-        <div><strong>Find My Timeline</strong><span>Private location history</span></div>
-        <button id="sidebar-close" class="icon-button mobile-only" aria-label="Close menu">×</button>
-      </div>
-
-      <nav class="nav-tabs" aria-label="Views">
-        <button class="nav-tab active" data-view="map"><span>⌖</span> Map</button>
-        <button class="nav-tab" data-view="timeline"><span>≡</span> Timeline</button>
-        <button class="nav-tab" data-view="settings"><span>⚙</span> Settings</button>
-      </nav>
-
-      <section class="section device-section">
-        <div class="section-heading"><div><span class="eyebrow">Your devices</span><h2>Devices</h2></div><span id="device-count" class="badge">0</span></div>
-        <div id="devices-list" class="device-list" aria-live="polite"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
-      </section>
-
-      <section class="section filters-section">
-        <div class="section-heading"><div><span class="eyebrow">Explore history</span><h2>Time range</h2></div></div>
-        <div class="quick-ranges" role="group" aria-label="Quick time ranges">
-          <button data-hours="24" class="range-chip active">24h</button>
-          <button data-hours="168" class="range-chip">7d</button>
-          <button data-hours="720" class="range-chip">30d</button>
-          <button data-hours="0" class="range-chip">All</button>
-        </div>
-        <details class="custom-range">
-          <summary>Choose exact date and time</summary>
-          <label>From<input id="start-time" type="datetime-local"></label>
-          <label>Until<input id="end-time" type="datetime-local"></label>
-          <button id="apply-range" class="button secondary">Apply range</button>
-        </details>
-      </section>
-
-      <section class="section sidebar-summary">
-        <div class="mini-stat"><span>Poller</span><strong id="poller-state">Checking…</strong></div>
-        <div class="mini-stat"><span>Last successful poll</span><strong id="poller-success">—</strong></div>
-        <div class="mini-stat"><span>Last refresh</span><strong id="last-refresh">—</strong></div>
-        <div class="mini-stat"><span>Visible points</span><strong id="visible-points">0</strong></div>
-      </section>
-
-      <footer class="sidebar-footer">
-        <span>Find My Timeline</span>
-        <strong>v{{ app_version }}</strong>
-      </footer>
-    </aside>
-
-    <main class="main-content">
-      <header class="topbar">
-        <div class="topbar-title">
-          <button id="menu-button" class="icon-button mobile-only" aria-label="Open menu">☰</button>
-          <div><span class="eyebrow">Location dashboard</span><h1 id="page-title">Overview</h1></div>
-        </div>
-        <div class="topbar-actions">
-          <span id="live-status" class="live-pill"><span></span> Ready</span>
-          <button id="fit-map" class="button ghost">Fit map</button>
-          <button id="refresh-btn" class="button primary">Refresh</button>
-        </div>
-      </header>
-
-      <section class="metric-grid" aria-label="Dashboard metrics">
-        <article class="metric-card"><span class="metric-icon">⌖</span><div><span>Tracked devices</span><strong id="metric-devices">—</strong></div></article>
-        <article class="metric-card"><span class="metric-icon">◎</span><div><span>Recorded positions</span><strong id="metric-locations">—</strong></div></article>
-        <article class="metric-card"><span class="metric-icon">◷</span><div><span>Latest position</span><strong id="metric-latest">—</strong></div></article>
-        <article class="metric-card"><span class="metric-icon">↻</span><div><span>Selected range</span><strong id="metric-range">24 hours</strong></div></article>
-      </section>
-
-      <section id="map-view" class="workspace active">
-        <div class="map-card">
-          <div id="map" aria-label="Location history map"></div>
-          <div id="map-empty" class="empty-state hidden"><div class="empty-icon">⌖</div><h2>No positions in this range</h2><p>Choose another device or extend the selected time range.</p></div>
-          <div class="map-legend"><span><i class="dot current"></i>Latest</span><span><i class="dot history"></i>History</span></div>
-        </div>
-      </section>
-
-      <section id="timeline-view" class="workspace">
-        <div class="timeline-card">
-          <div class="timeline-toolbar"><div><span class="eyebrow">Chronological history</span><h2 id="timeline-title">All devices</h2></div><span id="timeline-count" class="badge">0 points</span></div>
-          <div id="timeline-list" class="timeline-list"><div class="empty-inline">Select a device or load a time range.</div></div>
-        </div>
-      </section>
-
-      <section id="settings-view" class="workspace">
-        <div class="settings-layout">
-          <header class="settings-intro">
-            <div><span class="eyebrow">Application control centre</span><h2>Settings &amp; status</h2></div>
-          </header>
-
-          <div class="settings-grid">
-            <article class="settings-card settings-card-wide">
-              <div class="settings-card-heading"><span class="settings-icon">◎</span><div><h3>System status</h3><p>Live health and background polling state.</p></div></div>
-              <dl class="settings-values">
-                <div><dt>Application version</dt><dd id="settings-version">v{{ app_version }}</dd></div>
-                <div><dt>Database</dt><dd id="settings-database">Checking…</dd></div>
-                <div><dt>Poller</dt><dd id="settings-poller">Checking…</dd></div>
-                <div><dt>Last successful poll</dt><dd id="settings-last-poll">—</dd></div>
-              </dl>
-            </article>
-
-            <article class="settings-card">
-              <div class="settings-card-heading"><span class="settings-icon">↻</span><div><h3>Polling</h3><p>Read-only values from the container environment.</p></div></div>
-              <dl class="settings-values compact">
-                <div><dt>Interval</dt><dd id="settings-poll-interval">—</dd></div>
-                <div><dt>Failure retry</dt><dd id="settings-retry">—</dd></div>
-                <div><dt>Timezone</dt><dd id="settings-timezone">—</dd></div>
-              </dl>
-              <p class="settings-note">Change these values in the Unraid Docker template, then recreate the container.</p>
-            </article>
-
-            <article class="settings-card">
-              <div class="settings-card-heading"><span class="settings-icon">⌁</span><div><h3>Health endpoints</h3><p>Use these endpoints for monitoring and diagnostics.</p></div></div>
-              <div class="endpoint-list">
-                <a href="/health/live"><code>/health/live</code><span>Process liveness</span></a>
-                <a href="/health/ready"><code>/health/ready</code><span>Database readiness</span></a>
-              </div>
-            </article>
-
-            <div id="auth-settings-host" class="settings-card settings-card-wide">
-              <div class="settings-card-heading"><span class="settings-icon">◉</span><div><h3>Apple authentication</h3><p>Apple ID is not configured for this process.</p></div></div>
-            </div>
-
-            <article class="settings-card settings-card-wide security-card">
-              <div class="settings-card-heading"><span class="settings-icon">◇</span><div><h3>Privacy &amp; access</h3><p>Location history and Apple sessions require careful protection.</p></div></div>
-              <ul class="security-list">
-                <li>Keep the WebUI on a trusted network or behind an authenticated HTTPS proxy.</li>
-                <li>Back up both persistent appdata paths and protect those backups.</li>
-                <li>Use a unique WebUI administrator password that is different from the Apple ID password.</li>
-              </ul>
-            </article>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0b1020" />
+    <title>Find My Timeline</title>
+    <link rel="preconnect" href="https://unpkg.com" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="/static/app.css" />
+    <link rel="stylesheet" href="/static/status.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="app-shell">
+      <aside id="sidebar" class="sidebar" aria-label="Primary navigation">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">⌖</div>
+          <div>
+            <strong>Find My Timeline</strong
+            ><span>Private location history</span>
           </div>
+          <button
+            id="sidebar-close"
+            class="icon-button mobile-only"
+            aria-label="Close menu"
+          >
+            ×
+          </button>
         </div>
-      </section>
-    </main>
 
-    <nav class="mobile-nav" aria-label="Mobile navigation">
-      <button class="mobile-nav-item active" data-view="map"><span>⌖</span>Map</button>
-      <button class="mobile-nav-item" data-view="timeline"><span>≡</span>Timeline</button>
-      <button id="mobile-devices" class="mobile-nav-item"><span>▣</span>Devices</button>
-      <button class="mobile-nav-item" data-view="settings"><span>⚙</span>Settings</button>
-    </nav>
-    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  </div>
+        <nav class="nav-tabs" aria-label="Views">
+          <button
+            class="nav-tab active"
+            data-view="map"
+            type="button"
+            aria-pressed="true"
+          >
+            <span>⌖</span> Map
+          </button>
+          <button
+            class="nav-tab"
+            data-view="timeline"
+            type="button"
+            aria-pressed="false"
+          >
+            <span>≡</span> Timeline
+          </button>
+          <button
+            class="nav-tab"
+            data-view="settings"
+            type="button"
+            aria-pressed="false"
+          >
+            <span>⚙</span> Settings
+          </button>
+        </nav>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script defer src="/static/app.js"></script>
-</body>
+        <section class="section device-section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Your devices</span>
+              <h2>Devices</h2>
+            </div>
+            <span id="device-count" class="badge">0</span>
+          </div>
+          <div id="devices-list" class="device-list" aria-live="polite">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </section>
+
+        <section class="section filters-section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Explore history</span>
+              <h2>Time range</h2>
+            </div>
+          </div>
+          <div class="quick-ranges" role="group" aria-label="Quick time ranges">
+            <button data-hours="24" class="range-chip active">24h</button>
+            <button data-hours="168" class="range-chip">7d</button>
+            <button data-hours="720" class="range-chip">30d</button>
+            <button data-hours="0" class="range-chip">All</button>
+          </div>
+          <details class="custom-range">
+            <summary>Choose exact date and time</summary>
+            <label>From<input id="start-time" type="datetime-local" /></label>
+            <label>Until<input id="end-time" type="datetime-local" /></label>
+            <button id="apply-range" class="button secondary">
+              Apply range
+            </button>
+          </details>
+        </section>
+
+        <section class="section sidebar-summary">
+          <div class="mini-stat">
+            <span>Poller</span><strong id="poller-state">Checking…</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Last successful poll</span
+            ><strong id="poller-success">—</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Last refresh</span><strong id="last-refresh">—</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Visible points</span><strong id="visible-points">0</strong>
+          </div>
+        </section>
+
+        <footer class="sidebar-footer">
+          <span>Find My Timeline</span>
+          <strong>v{{ app_version }}</strong>
+        </footer>
+      </aside>
+
+      <main id="main-content" class="main-content" tabindex="-1">
+        <header class="topbar">
+          <div class="topbar-title">
+            <button
+              id="menu-button"
+              class="icon-button mobile-only"
+              aria-label="Open menu"
+            >
+              ☰
+            </button>
+            <div>
+              <span class="eyebrow">Location dashboard</span>
+              <h1 id="page-title">Overview</h1>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <span
+              id="live-status"
+              class="live-pill"
+              role="status"
+              aria-live="polite"
+              ><span></span> Ready</span
+            >
+            <button id="fit-map" class="button ghost">Fit map</button>
+            <button id="refresh-btn" class="button primary">Refresh</button>
+          </div>
+        </header>
+
+        <section
+          id="system-banner"
+          class="system-banner"
+          role="status"
+          aria-live="polite"
+          hidden
+        >
+          <span class="system-banner-icon" aria-hidden="true">!</span>
+          <div>
+            <strong id="system-banner-title">Action required</strong>
+            <p id="system-banner-message"></p>
+          </div>
+          <button id="system-banner-action" class="button ghost" type="button">
+            Open settings
+          </button>
+        </section>
+
+        <section class="metric-grid" aria-label="Dashboard metrics">
+          <article class="metric-card">
+            <span class="metric-icon">⌖</span>
+            <div>
+              <span>Tracked devices</span><strong id="metric-devices">—</strong>
+            </div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon">◎</span>
+            <div>
+              <span>Recorded positions</span
+              ><strong id="metric-locations">—</strong>
+            </div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon">◷</span>
+            <div>
+              <span>Latest position</span><strong id="metric-latest">—</strong>
+            </div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon">↻</span>
+            <div>
+              <span>Selected range</span
+              ><strong id="metric-range">24 hours</strong>
+            </div>
+          </article>
+        </section>
+
+        <section id="map-view" class="workspace active">
+          <div class="map-card">
+            <section
+              id="filter-summary"
+              class="filter-summary"
+              aria-live="polite"
+            >
+              <div>
+                <span class="eyebrow">Showing locations for</span
+                ><strong id="active-device-label">All devices</strong>
+              </div>
+              <button
+                id="clear-device"
+                class="button ghost compact"
+                type="button"
+                hidden
+              >
+                Clear device filter
+              </button>
+            </section>
+            <div id="map" aria-label="Location history map"></div>
+            <div id="map-empty" class="empty-state hidden">
+              <div class="empty-icon">⌖</div>
+              <h2>No positions in this range</h2>
+              <p>Choose another device or extend the selected time range.</p>
+            </div>
+            <div class="map-legend">
+              <span><i class="dot current"></i>Latest</span
+              ><span><i class="dot history"></i>History</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="timeline-view" class="workspace">
+          <div class="timeline-card">
+            <div class="timeline-toolbar">
+              <div>
+                <span class="eyebrow">Chronological history</span>
+                <h2 id="timeline-title">All devices</h2>
+              </div>
+              <span id="timeline-count" class="badge">0 points</span>
+            </div>
+            <div id="timeline-list" class="timeline-list">
+              <div class="empty-inline">
+                Select a device or load a time range.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="settings-view" class="workspace">
+          <div class="settings-layout">
+            <header class="settings-intro">
+              <div>
+                <span class="eyebrow">Application control centre</span>
+                <h2>Settings &amp; status</h2>
+              </div>
+            </header>
+
+            <div class="settings-grid">
+              <article class="settings-card settings-card-wide">
+                <div class="settings-card-heading">
+                  <span class="settings-icon">◎</span>
+                  <div>
+                    <h3>System status</h3>
+                    <p>Live health and background polling state.</p>
+                  </div>
+                </div>
+                <dl class="settings-values">
+                  <div>
+                    <dt>Application version</dt>
+                    <dd id="settings-version">v{{ app_version }}</dd>
+                  </div>
+                  <div>
+                    <dt>Database</dt>
+                    <dd id="settings-database">Checking…</dd>
+                  </div>
+                  <div>
+                    <dt>Poller</dt>
+                    <dd id="settings-poller">Checking…</dd>
+                  </div>
+                  <div>
+                    <dt>Last successful poll</dt>
+                    <dd id="settings-last-poll">—</dd>
+                  </div>
+                </dl>
+              </article>
+
+              <article class="settings-card">
+                <div class="settings-card-heading">
+                  <span class="settings-icon">↻</span>
+                  <div>
+                    <h3>Polling</h3>
+                    <p>Read-only values from the container environment.</p>
+                  </div>
+                </div>
+                <dl class="settings-values compact">
+                  <div>
+                    <dt>Interval</dt>
+                    <dd id="settings-poll-interval">—</dd>
+                  </div>
+                  <div>
+                    <dt>Failure retry</dt>
+                    <dd id="settings-retry">—</dd>
+                  </div>
+                  <div>
+                    <dt>Timezone</dt>
+                    <dd id="settings-timezone">—</dd>
+                  </div>
+                </dl>
+                <p class="settings-note">
+                  Change these values in the Unraid Docker template, then
+                  recreate the container.
+                </p>
+              </article>
+
+              <article class="settings-card">
+                <div class="settings-card-heading">
+                  <span class="settings-icon">⌁</span>
+                  <div>
+                    <h3>Health endpoints</h3>
+                    <p>Use these endpoints for monitoring and diagnostics.</p>
+                  </div>
+                </div>
+                <div class="endpoint-list">
+                  <a href="/health/live"
+                    ><code>/health/live</code><span>Process liveness</span></a
+                  >
+                  <a href="/health/ready"
+                    ><code>/health/ready</code
+                    ><span>Database readiness</span></a
+                  >
+                </div>
+              </article>
+
+              <div
+                id="auth-settings-host"
+                class="settings-card settings-card-wide"
+              >
+                <div class="settings-card-heading">
+                  <span class="settings-icon">◉</span>
+                  <div>
+                    <h3>Apple authentication</h3>
+                    <p>Apple ID is not configured for this process.</p>
+                  </div>
+                </div>
+              </div>
+
+              <article class="settings-card settings-card-wide security-card">
+                <div class="settings-card-heading">
+                  <span class="settings-icon">◇</span>
+                  <div>
+                    <h3>Privacy &amp; access</h3>
+                    <p>
+                      Location history and Apple sessions require careful
+                      protection.
+                    </p>
+                  </div>
+                </div>
+                <ul class="security-list">
+                  <li>
+                    Keep the WebUI on a trusted network or behind an
+                    authenticated HTTPS proxy.
+                  </li>
+                  <li>
+                    Back up both persistent appdata paths and protect those
+                    backups.
+                  </li>
+                  <li>
+                    Use a unique WebUI administrator password that is different
+                    from the Apple ID password.
+                  </li>
+                </ul>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <nav class="mobile-nav" aria-label="Mobile navigation">
+        <button
+          class="mobile-nav-item active"
+          data-view="map"
+          type="button"
+          aria-pressed="true"
+        >
+          <span>⌖</span>Map
+        </button>
+        <button
+          class="mobile-nav-item"
+          data-view="timeline"
+          type="button"
+          aria-pressed="false"
+        >
+          <span>≡</span>Timeline
+        </button>
+        <button id="mobile-devices" class="mobile-nav-item">
+          <span>▣</span>Devices
+        </button>
+        <button
+          class="mobile-nav-item"
+          data-view="settings"
+          type="button"
+          aria-pressed="false"
+        >
+          <span>⚙</span>Settings
+        </button>
+      </nav>
+      <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+      crossorigin="anonymous"
+    ></script>
+    <script defer src="/static/app.js"></script>
+  </body>
 </html>

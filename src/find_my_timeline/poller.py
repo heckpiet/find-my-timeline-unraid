@@ -86,34 +86,30 @@ class LocationPoller:
             )
 
             if not location:
-                logger.warning(f"No location available for device {device['name']}")
+                logger.warning("No location available for device %s", device["name"])
                 continue
 
             latitude = location.get("latitude")
             longitude = location.get("longitude")
 
             if latitude is None or longitude is None:
-                logger.warning(f"Invalid coordinates for device {device['name']}")
+                logger.warning("Invalid coordinates for device %s", device["name"])
                 continue
 
             # Parse timestamp (Apple returns milliseconds since epoch)
             timestamp_ms = location.get("timeStamp")
             if timestamp_ms:
-                timestamp = datetime.fromtimestamp(timestamp_ms / 1000)
+                timestamp = datetime.fromtimestamp(timestamp_ms / 1000, timezone.utc)
             elif location.get("isOld", False):
                 # Skip if location is marked as old/stale and no timestamp
-                logger.info(f"Skipping stale location for {device['name']}")
+                logger.info("Skipping stale location for %s", device["name"])
                 continue
             else:
-                timestamp = datetime.now()
+                timestamp = datetime.now(timezone.utc)
 
-            # Check if this is a duplicate (same timestamp as last recorded)
-            last_location = self.database.get_latest_location(device_id)
-            if last_location:
-                last_ts = last_location.get("timestamp")
-                if last_ts and str(last_ts) == str(timestamp):
-                    logger.debug(f"Skipping duplicate location for {device['name']}")
-                    continue
+            if self.database.location_exists(device_id, timestamp):
+                logger.debug("Skipping duplicate location for %s", device["name"])
+                continue
 
             # Record the location
             location_id = self.database.record_location(
@@ -139,17 +135,14 @@ class LocationPoller:
             }
             recorded.append(recorded_location)
 
-            logger.info(
-                f"Recorded location for {device['name']}: "
-                f"({latitude:.6f}, {longitude:.6f}) at {timestamp}"
-            )
+            logger.info("Recorded a new location for %s at %s", device["name"], timestamp)
 
         # Call registered callbacks
         for callback in self._on_poll_callbacks:
             try:
                 callback(recorded)
-            except Exception as e:
-                logger.error(f"Callback error: {e}")
+            except Exception:
+                logger.exception("Poll callback failed")
 
         return recorded
 
@@ -167,8 +160,9 @@ class LocationPoller:
         # Set up signal handlers for graceful shutdown (only in main thread)
         if setup_signals:
             try:
+
                 def handle_signal(signum, frame):
-                    logger.info(f"Received signal {signum}, stopping...")
+                    logger.info("Received signal %s, stopping...", signum)
                     self._running = False
 
                 signal.signal(signal.SIGINT, handle_signal)
@@ -178,7 +172,9 @@ class LocationPoller:
                 pass
 
         logger.info(
-            f"Starting location poller (interval: {self.min_interval}-{self.max_interval} minutes)"
+            "Starting location poller (interval: %d-%d minutes)",
+            self.min_interval,
+            self.max_interval,
         )
 
         while self._running:
@@ -222,7 +218,11 @@ class LocationPoller:
                     last_error=public_error,
                     next_poll_at=retry_at.isoformat(),
                 )
-                logger.error("Polling unavailable: %s; retrying in %d minute(s)", exc, self.auth_retry_interval)
+                logger.error(
+                    "Polling unavailable: %s; retrying in %d minute(s)",
+                    exc,
+                    self.auth_retry_interval,
+                )
                 self._wait(retry_seconds)
 
         self._set_status(state="stopped", next_poll_at=None)

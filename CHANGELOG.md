@@ -6,20 +6,31 @@ The project follows Semantic Versioning. Release images are published from match
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-03
+
 ### Added
 
 - Add a dedicated responsive settings view for application health, polling configuration, health endpoints, privacy guidance and Apple authentication.
 - Show the running application version in the sidebar and system status API.
+- Add validated, typed runtime configuration with clear startup errors for invalid values.
+- Add package and rendered-WebUI smoke tests, CodeQL analysis and grouped Dependabot updates.
+- Add active device-filter context, recovery guidance, a skip link and improved live status feedback.
 
 ### Changed
 
 - Move Apple re-authentication from the crowded device sidebar into the settings view.
 - Improve navigation, timeline buttons, form controls and keyboard focus styling.
 - Refresh the README and screenshots with synthetic demonstration data.
+- Normalize stored timestamps to UTC, enable SQLite WAL and busy-timeout handling, and avoid duplicate location inserts.
+- Stop logging precise coordinates during normal polling and use structured exception logging.
+- Build the runtime container from an installed wheel in a smaller multi-stage image.
+- Pin supported dependency ranges and raise the enforced test coverage threshold to 70 percent.
+- Add strict browser security headers, Subresource Integrity for Leaflet and explicit static-asset caching.
 
 ### Fixed
 
 - Include WebUI templates and static assets in built Python wheels so the installed package can render the dashboard outside an editable checkout.
+- Make configuration validation, authentication metadata writes and polling recovery more robust.
 
 ## [0.2.2] - 2026-08-03
 
@@ -115,4 +126,5 @@ The release candidate was tested successfully on Unraid OS 7.3.2 with:
 [0.2.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.0
 [0.2.1]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.1
 [0.2.2]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.2
+[0.3.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.3.0
 [0.1.0]: https://github.com/heckpiet/find-my-timeline-unraid/commits/master

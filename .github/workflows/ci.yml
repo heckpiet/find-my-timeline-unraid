@@ -23,8 +23,40 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install '.[test]'
+      - run: python -m pip check
       - run: ruff check .
+      - run: ruff format --check .
       - run: pytest
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install --upgrade pip build
+      - run: python -m build
+      - name: Verify installed wheel and WebUI assets
+        shell: bash
+        run: |
+          python -m pip install --force-reinstall dist/*.whl
+          cd /tmp
+          python - <<'PY'
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+
+          from find_my_timeline.database import LocationDatabase
+          from find_my_timeline.web import create_app
+
+          with TemporaryDirectory() as directory:
+              app = create_app(LocationDatabase(Path(directory) / "locations.db"))
+              app.config.update(TESTING=True)
+              response = app.test_client().get("/")
+              assert response.status_code == 200
+              assert b"Settings &amp; status" in response.data
+          PY
 
   unraid-template:
     runs-on: ubuntu-latest
@@ -58,6 +90,8 @@ jobs:
           done
           docker logs find-my-timeline-ci
           exit 1
+      - name: Verify rendered WebUI
+        run: curl --fail --silent http://127.0.0.1:5010/ | grep --fixed-strings 'Settings &amp; status'
       - name: Stop smoke container
         if: always()
         run: docker rm --force find-my-timeline-ci || true
