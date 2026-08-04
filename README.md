@@ -7,7 +7,7 @@
 
 Self-hosted Apple Find My location history for Unraid. It records device positions in a local SQLite database and turns them into an interactive route map and chronological timeline.
 
-**Current stable release:** `0.4.0` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
+**Current stable release:** `0.4.1` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
 
 > Unofficial Unraid-focused fork. This project is not affiliated with or endorsed by Apple or Lime Technology.
 
@@ -15,19 +15,19 @@ Self-hosted Apple Find My location history for Unraid. It records device positio
 
 ### Dashboard and route map
 
-![Find My Timeline dashboard with route map](docs/images/dashboard-map.png)
+![Find My Timeline dashboard with route map](docs/images/dashboard-map.jpg)
 
 ### Chronological timeline
 
-![Find My Timeline chronological device timeline](docs/images/timeline.png)
+![Find My Timeline chronological device timeline](docs/images/timeline.jpg)
 
 ### Guided Apple re-authentication
 
-![Find My Timeline first-run authentication setup](docs/images/authentication-setup.png)
+![Find My Timeline first-run authentication setup](docs/images/authentication-setup.jpg)
 
 ### Settings and system status
 
-![Find My Timeline settings and system status](docs/images/settings.png)
+![Find My Timeline settings and system status](docs/images/settings.jpg)
 
 The screenshots use synthetic demonstration devices and locations; no production location history is included in the repository.
 
@@ -136,7 +136,7 @@ ghcr.io/heckpiet/find-my-timeline-unraid:latest
 Pinned stable image:
 
 ```text
-ghcr.io/heckpiet/find-my-timeline-unraid:0.4.0
+ghcr.io/heckpiet/find-my-timeline-unraid:0.4.1
 ```
 
 ### Required persistent paths
@@ -296,7 +296,7 @@ Check the container logs and verify that the WebUI is listening on port `5000`. 
 
 ## Validation status
 
-The current `0.4.0` release is verified by the release pipeline before publication. CI covers Python 3.10, 3.11 and 3.12, linting and formatting, tests with a 70% coverage threshold, built-wheel installation, the Unraid XML template, CodeQL analysis, and a credential-free rendered-WebUI container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
+The current `0.4.1` release is verified by the release pipeline before publication. CI covers repository privacy scanning, Python 3.10, 3.11 and 3.12, linting and formatting, tests with a 70% coverage threshold, built-wheel installation, the Unraid XML template, CodeQL analysis, and a credential-free rendered-WebUI container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
 
 The optional, manually approved Unraid runner workflow uses temporary data and never mounts production appdata. The original end-to-end Unraid validation was performed on Unraid OS 7.3.2.
 
@@ -324,7 +324,7 @@ ruff check .
 pytest
 ```
 
-Pull requests run the Python test matrix, linting and formatting, package installation, CodeQL, template validation and a rendered-WebUI container smoke test. A version tag such as `v0.4.0` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. Dependabot proposes grouped weekly dependency updates. See [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
+Pull requests run the privacy scan, Python test matrix, linting and formatting, package installation, CodeQL, template validation and a rendered-WebUI container smoke test. A version tag such as `v0.4.1` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. Dependabot proposes grouped weekly dependency updates. See [`SECURITY.md`](SECURITY.md) for private reporting and [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
 
 ## Support and contributions
 
