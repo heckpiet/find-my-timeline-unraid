@@ -7,21 +7,21 @@
   <Privileged>false</Privileged>
   <Icon>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/icon.svg</Icon>
   <WebUI>http://[IP]:[PORT:5000]/</WebUI>
-  <Overview>Find My Timeline is a self-hosted location-history dashboard for Apple devices available through the Find My service. It polls device locations at configurable intervals, stores the history locally in SQLite and displays routes, timestamps, battery levels and chronological timelines on an interactive map. The Unraid edition includes persistent appdata storage, Docker health monitoring and optional protected Apple re-authentication. This is an unofficial project and the WebUI must not be exposed directly to the internet.</Overview>
+  <Overview>Private, self-hosted location history for Apple Find My devices. Find My Timeline stores positions locally in SQLite and presents routes, timestamps, battery levels and a chronological timeline in a responsive WebUI. Includes persistent Unraid appdata, Docker health checks and guided Apple two-factor authentication.</Overview>
   <Support>https://github.com/heckpiet/find-my-timeline-unraid/issues</Support>
   <Project>https://github.com/heckpiet/find-my-timeline-unraid</Project>
   <TemplateURL>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/templates/find-my-timeline.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/README.md</ReadMe>
   <Category>Tools:Utilities</Category>
   <ExtraSearchTerms>Apple Find My location history timeline iCloud tracking map GPS responsive dashboard mobile self-hosted</ExtraSearchTerms>
-  <Requires>Requires an Apple ID with two-factor authentication, internet access and persistent Unraid appdata storage. Initial Apple authentication must be completed through the protected WebUI flow or the container console. The WebUI contains sensitive location history and does not provide full access control for the map and APIs. Use only on a trusted local network, through a VPN or behind an authenticated HTTPS reverse proxy.</Requires>
-  <Changes>Version 0.4.5 replaces per-device polling messages with privacy-safe aggregate diagnostics. Normal Unraid container logs no longer expose device names or identifiers while still reporting discovered, recorded, unavailable, invalid, stale and duplicate counts.</Changes>
+  <Requires>Apple ID with two-factor authentication, internet access and persistent appdata storage. Complete initial authentication in the guided WebUI. Location history is sensitive: keep the WebUI on a trusted LAN or access it through a VPN or authenticated HTTPS reverse proxy. Do not expose it directly to the internet.</Requires>
+  <Changes>Version 0.4.5 adds privacy-safe aggregate polling logs. The Community Applications listing now uses cache-safe PNG screenshots and streamlined installation guidance.</Changes>
   <Date>2026-08-04</Date>
   <MinVer>6.12.0</MinVer>
   <License>MIT</License>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/dashboard-map.jpg</Screenshot>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/settings.jpg</Screenshot>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/timeline.jpg</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/unraid-dashboard.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/unraid-timeline.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/unraid-settings.png</Screenshot>
   <DefaultTagDescription>Latest stable release</DefaultTagDescription>
   <Branch>
     <Tag>0.4.5</Tag>

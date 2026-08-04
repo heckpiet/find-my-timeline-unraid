@@ -15,11 +15,11 @@ Self-hosted Apple Find My location history for Unraid. It records device positio
 
 ### Dashboard and route map
 
-![Find My Timeline dashboard with route map](docs/images/dashboard-map.jpg)
+![Find My Timeline dashboard with route map](docs/images/unraid-dashboard.png)
 
 ### Chronological timeline
 
-![Find My Timeline chronological device timeline](docs/images/timeline.jpg)
+![Find My Timeline chronological device timeline](docs/images/unraid-timeline.png)
 
 ### Guided Apple re-authentication
 
@@ -27,7 +27,7 @@ Self-hosted Apple Find My location history for Unraid. It records device positio
 
 ### Settings and system status
 
-![Find My Timeline settings and system status](docs/images/settings.jpg)
+![Find My Timeline settings and system status](docs/images/unraid-settings.png)
 
 The screenshots use synthetic demonstration devices and locations; no production location history is included in the repository.
 
