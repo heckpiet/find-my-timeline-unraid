@@ -112,3 +112,10 @@ The automated Unraid smoke workflow uses an empty temporary data directory and d
 - select a trusted device, request a code and verify it without using the container console
 - confirm the Apple password and verification code are absent from both persistent appdata mappings
 - recreate the Unraid container and confirm the completed Apple session and saved Apple ID remain available
+
+## Version 0.4.4 release-candidate checks
+
+- authenticate an account for which `pyicloud` reports both `requires_2fa` and `requires_2sa`
+- confirm the code arrives on the Apple device and the WebUI immediately displays the verification-code field
+- verify the modern 2FA path does not query or require the legacy trusted-device list
+- submit the current code and confirm the session and Apple ID persist across an Unraid container recreation

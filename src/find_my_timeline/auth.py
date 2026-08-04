@@ -73,7 +73,7 @@ class ICloudAuth:
         with self._lock:
             self.api = self._create_service(password)
             password = None
-            if self.api.requires_2sa:
+            if self.api.requires_2sa and not self.api.requires_2fa:
                 devices = self.api.trusted_devices
                 if not devices:
                     raise AuthenticationError("Apple did not return a trusted verification device")

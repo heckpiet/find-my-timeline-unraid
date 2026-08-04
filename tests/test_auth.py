@@ -48,6 +48,21 @@ class WebTwoStepApi:
         return True
 
 
+class WebModernTwoFactorApi:
+    requires_2sa = True
+    requires_2fa = True
+
+    def __init__(self):
+        self.request_count = 0
+
+    @property
+    def trusted_devices(self):
+        raise AssertionError("modern 2FA must not query legacy trusted devices")
+
+    def request_2fa_code(self):
+        self.request_count += 1
+
+
 def test_web_two_step_flow_uses_sanitized_device_labels(monkeypatch, tmp_path):
     monkeypatch.setattr("find_my_timeline.auth.Path.home", lambda: tmp_path)
     api = WebTwoStepApi()
@@ -75,3 +90,19 @@ def test_web_two_step_flow_uses_sanitized_device_labels(monkeypatch, tmp_path):
     assert api.sent_device == api.trusted_devices[1]
     assert api.validated == (api.trusted_devices[1], "123456")
     assert auth.authentication_metadata()["state"] == "valid"
+
+
+def test_web_modern_two_factor_takes_priority_over_requires_2sa(monkeypatch, tmp_path):
+    monkeypatch.setattr("find_my_timeline.auth.Path.home", lambda: tmp_path)
+    api = WebModernTwoFactorApi()
+    auth = ICloudAuth("demo@example.com")
+    monkeypatch.setattr(auth, "_create_service", lambda _password: api)
+
+    result = auth.begin_web_authentication("not-stored")
+
+    assert result == {
+        "requires_2fa": True,
+        "requires_2sa": False,
+        "status": "waiting_for_code",
+    }
+    assert api.request_count == 1
