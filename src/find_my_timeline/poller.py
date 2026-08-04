@@ -19,7 +19,7 @@ class LocationPoller:
 
     def __init__(
         self,
-        auth: ICloudAuth,
+        auth: ICloudAuth | None,
         database: LocationDatabase,
         min_interval: int = 7,
         max_interval: int = 10,
@@ -58,6 +58,11 @@ class LocationPoller:
     def wake(self) -> None:
         """Wake the poller so a renewed Apple session is used immediately."""
         self._wake_event.set()
+
+    def set_auth(self, auth: ICloudAuth) -> None:
+        """Install an authenticated account after WebUI onboarding and wake the poller."""
+        self.auth = auth
+        self.wake()
 
     def _set_status(self, **changes) -> None:
         with self._status_lock:
@@ -178,6 +183,14 @@ class LocationPoller:
         )
 
         while self._running:
+            if self.auth is None:
+                self._set_status(
+                    state="waiting_for_setup",
+                    last_error="Complete Apple setup in the WebUI",
+                    next_poll_at=None,
+                )
+                self._wait(max(1, self.auth_retry_interval) * 60)
+                continue
             now = datetime.now(timezone.utc).isoformat()
             self._set_status(state="authenticating", last_attempt_at=now, next_poll_at=None)
             try:

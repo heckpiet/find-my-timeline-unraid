@@ -79,3 +79,13 @@ The automated Unraid smoke workflow uses an empty temporary data directory and d
 - install the built wheel outside the source tree and confirm templates and static assets render
 - confirm the public image is available for both `linux/amd64` and `linux/arm64`
 - run the manually approved isolated Unraid validation against the exact public 0.3.0 image
+
+## Version 0.4.0 release-candidate checks
+
+- remove `ICLOUD_USERNAME` from a fresh container and confirm the WebUI and health check start normally
+- complete Apple ID, Apple password and 2FA setup entirely through the WebUI
+- confirm `apple-identity.json` contains the Apple ID but no Apple password or verification code
+- recreate and update the container while retaining the session mapping and confirm the Apple ID remains available
+- verify a password shorter than 12 characters is rejected unless both risk confirmations are supplied
+- verify a strong administrator password does not show or require the weak-password warning
+- confirm successful onboarding changes the poller from `waiting_for_setup` to active polling

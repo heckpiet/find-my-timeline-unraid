@@ -16,7 +16,7 @@ These jobs never publish an image and require only read access to repository con
 
 ## Preparing a new version
 
-1. Create a release branch from `master`, for example `release-0.3.0`.
+1. Create a release branch from `master`, for example `release-0.4.0`.
 2. Update the version in `pyproject.toml`.
 3. Add a dated section to `CHANGELOG.md`.
 4. Update `<Changes>` and `<Date>` in `templates/find-my-timeline.xml`.
@@ -29,8 +29,8 @@ These jobs never publish an image and require only read access to repository con
    ```bash
    git switch master
    git pull --ff-only
-   git tag -s v0.3.0 -m "Find My Timeline v0.3.0"
-   git push origin v0.3.0
+   git tag -s v0.4.0 -m "Find My Timeline v0.4.0"
+   git push origin v0.4.0
    ```
 
 The release workflow rejects a tag that does not match `pyproject.toml`. A valid tag publishes multi-architecture `linux/amd64` and `linux/arm64` images, SBOM and provenance metadata, then creates the GitHub release. It publishes `latest`, `X.Y.Z`, `vX.Y.Z` and `X.Y`. Existing `X.Y.Z` and `vX.Y.Z` tags must never be rebuilt from an ordinary branch push.
@@ -55,6 +55,8 @@ Verify at least:
 - WebUI is reachable through the configured host port
 - `/health/live` and `/health/ready` succeed
 - Apple authentication and 2FA work
+- a fresh container starts without Apple credentials and completes onboarding through the WebUI
+- the persisted Apple ID survives container replacement without storing the Apple password
 - authentication recovery resumes polling without a container restart
 - device polling records new locations
 - database and Apple session data survive container replacement

@@ -1,4 +1,5 @@
 from find_my_timeline.database import LocationDatabase
+from find_my_timeline.identity import AppleIdentityStore
 from find_my_timeline.web import create_app
 from find_my_timeline.web_admin import WebAdminStore
 
@@ -19,10 +20,18 @@ class PollerStub:
     def wake(self):
         self.wake_calls += 1
 
+    def set_auth(self, auth):
+        self.auth = auth
+        self.wake()
+
 
 class AuthStub:
     username = "person@example.com"
     password = None
+
+    def __init__(self, username="person@example.com", password=None):
+        self.username = username
+        self.password = password
 
     def authentication_metadata(self, lifetime_days):
         return {"configured": True, "state": "valid", "remaining_days": lifetime_days}
@@ -51,6 +60,7 @@ def make_client(tmp_path, monkeypatch, with_auth=False):
         AuthStub() if with_auth else None,
         poller,
         WebAdminStore(tmp_path / "session"),
+        AppleIdentityStore(tmp_path / "session"),
     )
     app.config.update(TESTING=True)
     return app.test_client(), poller
@@ -115,7 +125,13 @@ def test_first_run_setup_ignores_legacy_disabled_flag_and_persists_hash(tmp_path
     database = LocationDatabase(tmp_path / "locations.db")
     poller = PollerStub()
     store = WebAdminStore(tmp_path / "session")
-    app = create_app(database, AuthStub(), poller, store)
+    app = create_app(
+        database,
+        AuthStub(),
+        poller,
+        store,
+        AppleIdentityStore(tmp_path / "session"),
+    )
     app.config.update(TESTING=True)
     client = app.test_client()
 
@@ -151,6 +167,7 @@ def test_new_explicit_disable_flag_blocks_web_authentication(tmp_path, monkeypat
         AuthStub(),
         PollerStub(),
         WebAdminStore(tmp_path / "session"),
+        AppleIdentityStore(tmp_path / "session"),
     )
     app.config.update(TESTING=True)
     client = app.test_client()
@@ -162,3 +179,73 @@ def test_new_explicit_disable_flag_blocks_web_authentication(tmp_path, monkeypat
         json={"password": "apple-password", "admin_password": "new-admin-password"},
     )
     assert response.status_code == 404
+
+
+def test_first_run_accepts_and_persists_apple_id_from_webui(tmp_path, monkeypatch):
+    monkeypatch.delenv("WEB_ADMIN_PASSWORD", raising=False)
+    monkeypatch.setattr("find_my_timeline.web.ICloudAuth", AuthStub)
+    database = LocationDatabase(tmp_path / "locations.db")
+    session_directory = tmp_path / "session"
+    identity_store = AppleIdentityStore(session_directory)
+    poller = PollerStub()
+    app = create_app(
+        database,
+        None,
+        poller,
+        WebAdminStore(session_directory),
+        identity_store,
+    )
+    app.config.update(TESTING=True)
+    client = app.test_client()
+
+    status = client.get("/api/auth/status").get_json()
+    assert status["username_configured"] is False
+    assert status["setup_required"] is True
+
+    started = client.post(
+        "/api/auth/start",
+        json={
+            "username": "person@example.com",
+            "password": "temporary-apple-password",
+            "admin_password": "strong-admin-password",
+        },
+    )
+    assert started.status_code == 200
+    verified = client.post(
+        "/api/auth/verify",
+        headers={"X-Admin-Password": "strong-admin-password"},
+        json={"code": "123456"},
+    )
+
+    assert verified.status_code == 200
+    assert identity_store.load() == "person@example.com"
+    assert "temporary-apple-password" not in identity_store.path.read_text(encoding="utf-8")
+    assert poller.auth.username == "person@example.com"
+
+
+def test_weak_admin_password_requires_two_explicit_confirmations(tmp_path, monkeypatch):
+    monkeypatch.delenv("WEB_ADMIN_PASSWORD", raising=False)
+    monkeypatch.setattr("find_my_timeline.web.ICloudAuth", AuthStub)
+    session_directory = tmp_path / "session"
+    app = create_app(
+        LocationDatabase(tmp_path / "locations.db"),
+        None,
+        PollerStub(),
+        WebAdminStore(session_directory),
+        AppleIdentityStore(session_directory),
+    )
+    app.config.update(TESTING=True)
+    client = app.test_client()
+    payload = {
+        "username": "person@example.com",
+        "password": "temporary-apple-password",
+        "admin_password": "weak",
+        "accept_weak_password_warning": True,
+    }
+
+    rejected = client.post("/api/auth/start", json=payload)
+    assert rejected.status_code == 400
+
+    payload["confirm_weak_password_warning"] = True
+    accepted = client.post("/api/auth/start", json=payload)
+    assert accepted.status_code == 200

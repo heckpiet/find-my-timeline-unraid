@@ -21,3 +21,12 @@ def test_web_admin_store_rejects_short_password(tmp_path):
 
     with pytest.raises(ValueError, match="at least 12"):
         store.prepare("too-short")
+
+
+def test_web_admin_store_allows_confirmed_weak_password(tmp_path):
+    store = WebAdminStore(tmp_path)
+
+    record = store.prepare("weak", allow_weak=True)
+    store.save(record)
+
+    assert store.verify("weak")

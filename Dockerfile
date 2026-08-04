@@ -25,9 +25,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     WEB_HOST=0.0.0.0 \
     WEB_PORT=5000 \
-    DATABASE_PATH=/app/data/locations.db \
-    AUTH_SESSION_LIFETIME_DAYS=90 \
-    WEB_AUTH_DISABLED=false
+    DATABASE_PATH=/app/data/locations.db
 
 WORKDIR /app
 

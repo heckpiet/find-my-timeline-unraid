@@ -14,6 +14,7 @@ from . import __version__
 from .auth import AuthenticationError, ICloudAuth
 from .config import AppConfig
 from .database import LocationDatabase
+from .identity import AppleIdentityStore
 from .web_admin import WebAdminStore
 
 
@@ -22,6 +23,7 @@ def create_app(
     auth: ICloudAuth | None = None,
     poller=None,
     admin_store: WebAdminStore | None = None,
+    identity_store: AppleIdentityStore | None = None,
     config: AppConfig | None = None,
 ) -> Flask:
     """Create and configure the Flask application."""
@@ -37,10 +39,31 @@ def create_app(
     web_auth_enabled = not runtime_config.web_auth_disabled
     admin_password = runtime_config.web_admin_password
     admin_store = admin_store or WebAdminStore()
+    identity_store = identity_store or AppleIdentityStore()
     lifetime_days = runtime_config.auth_session_lifetime_days
     auth_timeout = runtime_config.web_auth_flow_timeout_seconds
-    state = {"started_at": 0.0, "waiting_for_code": False, "pending_admin": None}
+    state = {
+        "started_at": 0.0,
+        "waiting_for_code": False,
+        "pending_admin": None,
+        "pending_username": None,
+        "auth": auth,
+        "committed_auth": auth,
+    }
     state_lock = RLock()
+
+    def current_auth() -> ICloudAuth | None:
+        with state_lock:
+            return state["auth"]
+
+    def commit_identity(username: str, handler: ICloudAuth) -> None:
+        identity_store.save(username)
+        with state_lock:
+            state["auth"] = handler
+            state["committed_auth"] = handler
+            state["pending_username"] = None
+        if poller:
+            poller.set_auth(handler)
 
     def require_admin() -> tuple[dict, int] | None:
         if not web_auth_enabled:
@@ -83,24 +106,27 @@ def create_app(
     def index():
         """Main map view with an optional injected authentication widget."""
         html = render_template("index.html", app_version=__version__)
-        if auth:
-            assets = (
-                '<link rel="stylesheet" href="/static/auth.css">\n'
-                '<script defer src="/static/auth.js"></script>\n'
-            )
-            html = html.replace("</head>", f"{assets}</head>")
+        assets = (
+            '<link rel="stylesheet" href="/static/auth.css">\n'
+            '<script defer src="/static/auth.js"></script>\n'
+        )
+        html = html.replace("</head>", f"{assets}</head>")
         return html
 
     @app.route("/api/auth/status")
     def api_auth_status():
-        if not auth:
-            return jsonify({"configured": False, "state": "unavailable"})
-        status = auth.authentication_metadata(lifetime_days)
+        handler = current_auth()
+        status = (
+            handler.authentication_metadata(lifetime_days)
+            if handler
+            else {"configured": False, "state": "not_configured", "remaining_days": 0}
+        )
         status.update(
             web_auth_enabled=web_auth_enabled,
             admin_password_configured=bool(admin_password) or admin_store.configured,
             setup_required=not admin_password and not admin_store.configured,
-            username_masked=_mask_username(auth.username),
+            username_configured=bool(handler),
+            username_masked=_mask_username(handler.username) if handler else "",
             lifetime_days=lifetime_days,
         )
         with state_lock:
@@ -120,30 +146,44 @@ def create_app(
                 return jsonify(denied[0]), denied[1]
         elif not web_auth_enabled:
             return jsonify({"error": "Web authentication is disabled"}), 404
-        if not auth:
-            return jsonify({"error": "Apple ID is not configured"}), 503
         payload = request.get_json(silent=True) or {}
         pending_admin = None
         if setup_required:
             try:
-                pending_admin = admin_store.prepare(str(payload.get("admin_password", "")))
+                weak_accepted = (
+                    payload.get("accept_weak_password_warning") is True
+                    and payload.get("confirm_weak_password_warning") is True
+                )
+                pending_admin = admin_store.prepare(
+                    str(payload.get("admin_password", "")), allow_weak=weak_accepted
+                )
             except ValueError as exc:
                 return jsonify({"error": str(exc)}), 400
-        password = payload.get("password") or auth.password
+        handler = current_auth()
+        username = str(payload.get("username") or (handler.username if handler else "")).strip()
+        if not _valid_username(username):
+            return jsonify({"error": "Enter a valid Apple ID email address"}), 400
+        if handler is None or handler.username != username:
+            handler = ICloudAuth(username)
+        password = payload.get("password") or handler.password
         if not password:
             return jsonify(
                 {"error": "Enter the Apple ID password or configure ICLOUD_PASSWORD"}
             ), 400
         try:
-            result = auth.begin_web_authentication(password)
+            result = handler.begin_web_authentication(password)
             with state_lock:
                 state["started_at"] = time.monotonic()
                 state["waiting_for_code"] = bool(result["requires_2fa"])
                 state["pending_admin"] = pending_admin
+                state["pending_username"] = username
+                state["auth"] = handler
             if pending_admin and not result["requires_2fa"]:
                 admin_store.save(pending_admin)
                 with state_lock:
                     state["pending_admin"] = None
+            if not result["requires_2fa"]:
+                commit_identity(username, handler)
             return jsonify(result)
         except AuthenticationError as exc:
             return jsonify({"error": str(exc)}), 400
@@ -159,8 +199,12 @@ def create_app(
             ):
                 state["waiting_for_code"] = False
                 state["pending_admin"] = None
+                state["pending_username"] = None
+                state["auth"] = state["committed_auth"]
                 return jsonify({"error": "The authentication request expired. Start again."}), 409
             pending_admin = state["pending_admin"]
+            pending_username = state["pending_username"]
+            handler = state["auth"]
         if pending_admin:
             supplied = request.headers.get("X-Admin-Password", "")
             if not admin_store.verify(supplied, pending_admin):
@@ -170,15 +214,16 @@ def create_app(
             if denied:
                 return jsonify(denied[0]), denied[1]
         try:
-            auth.complete_web_2fa(code)
-            auth.get_devices()
+            if not handler or not pending_username:
+                return jsonify({"error": "No active Apple authentication request"}), 409
+            handler.complete_web_2fa(code)
+            handler.get_devices()
             with state_lock:
                 state["waiting_for_code"] = False
                 state["pending_admin"] = None
             if pending_admin:
                 admin_store.save(pending_admin)
-            if poller:
-                poller.wake()
+            commit_identity(pending_username, handler)
             return jsonify({"status": "authenticated"})
         except AuthenticationError as exc:
             return jsonify({"error": str(exc)}), 400
@@ -277,3 +322,8 @@ def _mask_username(username: str) -> str:
     local, domain = username.split("@", 1)
     visible = local[:1]
     return f"{visible}{'*' * max(3, len(local) - 1)}@{domain}"
+
+
+def _valid_username(username: str) -> bool:
+    local, separator, domain = username.partition("@")
+    return bool(local and separator and "." in domain and not domain.startswith("."))

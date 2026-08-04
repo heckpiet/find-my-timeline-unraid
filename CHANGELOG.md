@@ -6,6 +6,26 @@ The project follows Semantic Versioning. Release images are published from match
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-04
+
+### Added
+
+- Add complete first-run Apple ID, Apple password and 2FA onboarding to the WebUI.
+- Persist only the Apple ID address in the protected session volume after successful authentication.
+- Allow a deliberately weak WebUI administrator password only after two explicit security confirmations.
+- Add a poller `waiting_for_setup` state so a fresh container remains healthy before onboarding.
+
+### Changed
+
+- Make `ICLOUD_USERNAME` optional and remove it from the recommended Docker and Unraid setup.
+- Start the full application and WebUI without any Apple credentials in the container configuration.
+- Keep Apple passwords and verification codes exclusively in the short-lived authentication flow.
+
+### Security
+
+- Enforce both weak-password acknowledgements on the server, independently of browser validation.
+- Write the persisted Apple ID atomically with restrictive file permissions.
+
 ## [0.3.0] - 2026-08-03
 
 ### Added
@@ -127,4 +147,5 @@ The release candidate was tested successfully on Unraid OS 7.3.2 with:
 [0.2.1]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.1
 [0.2.2]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.2
 [0.3.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.3.0
+[0.4.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.0
 [0.1.0]: https://github.com/heckpiet/find-my-timeline-unraid/commits/master
