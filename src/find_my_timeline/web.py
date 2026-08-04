@@ -107,8 +107,8 @@ def create_app(
         """Main map view with an optional injected authentication widget."""
         html = render_template("index.html", app_version=__version__)
         assets = (
-            '<link rel="stylesheet" href="/static/auth.css">\n'
-            '<script defer src="/static/auth.js"></script>\n'
+            f'<link rel="stylesheet" href="/static/auth.css?v={__version__}">\n'
+            f'<script defer src="/static/auth.js?v={__version__}"></script>\n'
         )
         html = html.replace("</head>", f"{assets}</head>")
         return html

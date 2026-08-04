@@ -88,6 +88,8 @@ def test_health_and_system_status(tmp_path, monkeypatch):
     assert index.status_code == 200
     assert b"Settings &amp; status" in index.data
     assert f"v{payload['version']}".encode() in index.data
+    assert f"/static/app.js?v={payload['version']}".encode() in index.data
+    assert f"/static/auth.js?v={payload['version']}".encode() in index.data
     assert "frame-ancestors 'none'" in index.headers["Content-Security-Policy"]
     assert index.headers["Permissions-Policy"] == "camera=(), microphone=(), geolocation=()"
     assert index.headers["Cache-Control"] == "no-store"
@@ -95,6 +97,14 @@ def test_health_and_system_status(tmp_path, monkeypatch):
     static_asset = client.get("/static/app.js")
     assert static_asset.status_code == 200
     assert static_asset.headers["Cache-Control"].startswith("public, max-age=3600")
+
+    auth_asset = client.get("/static/auth.js")
+    assert auth_asset.status_code == 200
+    assert b"Apple ID email address" in auth_asset.data
+    assert b"Password for this Apple ID" in auth_asset.data
+    assert auth_asset.data.count(b'data-password-target="') == 3
+    assert b"Apple ID used for Find My" in auth_asset.data
+    assert b"Security and storage details" in auth_asset.data
 
 
 def test_location_query_rejects_invalid_parameters(tmp_path, monkeypatch):

@@ -16,19 +16,49 @@
     <div class="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <h2 id="auth-title">Renew Apple session</h2>
       <p id="auth-step">Enter the WebUI administrator password and your Apple ID password.</p>
-      <label id="apple-username-row" hidden>Apple ID<input id="auth-username" type="email" inputmode="email" autocomplete="username" placeholder="name@example.com"></label>
-      <label><span id="auth-admin-label">WebUI administrator password</span><input id="auth-admin" type="password" autocomplete="current-password"></label>
-      <label id="auth-admin-confirm-row" hidden>Confirm new administrator password<input id="auth-admin-confirm" type="password" autocomplete="new-password"></label>
+      <div class="auth-identity" aria-live="polite">
+        <span>Apple ID used for Find My</span>
+        <strong id="auth-current-identity">Loading…</strong>
+      </div>
+      <div id="apple-username-row" class="auth-field" hidden>
+        <label for="auth-username">Apple ID email address</label>
+        <input id="auth-username" type="email" inputmode="email" autocomplete="username" placeholder="name@example.com">
+        <small>Enter the email address you use to sign in to your Apple Account.</small>
+      </div>
+      <div class="auth-field">
+        <label id="auth-admin-label" for="auth-admin">WebUI administrator password</label>
+        <div class="auth-password-control">
+          <input id="auth-admin" type="password" autocomplete="current-password">
+          <button class="password-toggle" type="button" data-password-target="auth-admin" aria-label="Show WebUI administrator password" aria-pressed="false">Show</button>
+        </div>
+      </div>
+      <div id="auth-admin-confirm-row" class="auth-field" hidden>
+        <label for="auth-admin-confirm">Confirm new administrator password</label>
+        <div class="auth-password-control">
+          <input id="auth-admin-confirm" type="password" autocomplete="new-password">
+          <button class="password-toggle" type="button" data-password-target="auth-admin-confirm" aria-label="Show administrator password confirmation" aria-pressed="false">Show</button>
+        </div>
+      </div>
       <div id="weak-password-warning" class="auth-warning" hidden>
         <strong>Security warning: this administrator password is weak.</strong>
         <p>A weak password makes it easier to access your private location history. At least 12 characters are strongly recommended.</p>
         <label><input id="weak-warning-accept" type="checkbox"> I understand that this password is not recommended and may reduce security.</label>
         <label><input id="weak-warning-confirm" type="checkbox"> I confirm again that I deliberately want to use this weak password.</label>
       </div>
-      <label id="apple-password-row">Apple ID password<input id="auth-password" type="password" autocomplete="current-password"></label>
-      <label id="auth-code-row" hidden>Apple verification code<input id="auth-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
+      <div id="apple-password-row" class="auth-field">
+        <label id="apple-password-label" for="auth-password">Password for this Apple ID</label>
+        <div class="auth-password-control">
+          <input id="auth-password" type="password" autocomplete="current-password">
+          <button class="password-toggle" type="button" data-password-target="auth-password" aria-label="Show Apple ID password" aria-pressed="false">Show</button>
+        </div>
+        <small id="apple-password-help">This means your Apple Account password — not the WebUI password.</small>
+      </div>
+      <div id="auth-code-row" class="auth-field" hidden><label for="auth-code">Apple verification code</label><input id="auth-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></div>
       <p id="auth-error" class="auth-error"></p>
-      <p class="auth-security">Apple passwords and verification codes are sent only to this server and are not stored. During first-run setup, the administrator password is stored only as a salted hash in the persistent session directory. Never expose this WebUI directly to the internet; use HTTPS, a VPN, or an authenticated reverse proxy.</p>
+      <details class="auth-security">
+        <summary>Security and storage details</summary>
+        <p>Apple passwords and verification codes are sent only to this server and are not stored. During first-run setup, the administrator password is stored only as a salted hash in the persistent session directory. Never expose this WebUI directly to the internet; use HTTPS, a VPN, or an authenticated reverse proxy.</p>
+      </details>
       <div class="auth-actions"><button id="auth-cancel" class="secondary" type="button">Cancel</button><button id="auth-submit" type="button">Start</button></div>
     </div>`;
   document.body.appendChild(modal);
@@ -36,6 +66,7 @@
   let waitingForCode = false;
   let setupRequired = false;
   let usernameConfigured = false;
+  let maskedUsername = "";
   const statusEl = document.getElementById("auth-status");
   const openButton = document.getElementById("auth-open");
   const submitButton = document.getElementById("auth-submit");
@@ -68,6 +99,9 @@
     statusEl.append(row, username);
     setupRequired = Boolean(status.setup_required);
     usernameConfigured = Boolean(status.username_configured);
+    maskedUsername = status.username_masked || "";
+    document.getElementById("auth-current-identity").textContent =
+      maskedUsername ? maskedUsername : "No Apple ID saved yet";
     openButton.disabled = !status.web_auth_enabled;
     openButton.textContent = setupRequired
       ? "Set up & re-authenticate"
@@ -88,8 +122,11 @@
       ? "Set up Apple access"
       : "Renew Apple session";
     document.getElementById("auth-step").textContent = setupRequired
-      ? "Create a local administrator password, then authenticate your Apple ID."
-      : "Enter the WebUI administrator password and your Apple ID password.";
+      ? "Protect this WebUI first, then connect the Apple ID you use for Find My."
+      : `Unlock the WebUI, then renew the Apple session for ${maskedUsername || "the saved Apple ID"}.`;
+    document.getElementById("apple-password-label").textContent = maskedUsername
+      ? `Password for ${maskedUsername}`
+      : "Password for the Apple ID above";
     updateWeakPasswordWarning();
   }
 
@@ -109,9 +146,32 @@
     };
   }
 
+  function setPasswordVisibility(button, visible) {
+    const input = document.getElementById(button.dataset.passwordTarget);
+    input.type = visible ? "text" : "password";
+    button.textContent = visible ? "Hide" : "Show";
+    button.setAttribute("aria-pressed", String(visible));
+    button.setAttribute(
+      "aria-label",
+      `${visible ? "Hide" : "Show"} ${button.dataset.passwordTarget === "auth-password" ? "Apple ID password" : "WebUI administrator password"}`,
+    );
+  }
+
+  document.querySelectorAll("[data-password-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setPasswordVisibility(
+        button,
+        button.getAttribute("aria-pressed") !== "true",
+      );
+    });
+  });
+
   openButton.addEventListener("click", () => {
     modal.classList.add("visible");
     errorEl.textContent = "";
+    const firstField =
+      setupRequired && !usernameConfigured ? "auth-username" : "auth-admin";
+    document.getElementById(firstField).focus();
   });
   document
     .getElementById("auth-admin")
@@ -179,6 +239,9 @@
         document.getElementById("auth-username").value = "";
         document.getElementById("weak-warning-accept").checked = false;
         document.getElementById("weak-warning-confirm").checked = false;
+        document
+          .querySelectorAll("[data-password-target]")
+          .forEach((button) => setPasswordVisibility(button, false));
         updateWeakPasswordWarning();
         await loadStatus();
       }
