@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import struct
 import xml.etree.ElementTree as ET
 from datetime import date
@@ -40,6 +41,19 @@ def main() -> None:
         if not (root.findtext(field) or "").strip():
             raise ValueError(f"Missing required Community Applications field: {field}")
 
+    project_text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    version_match = re.search(r'^version = "([^"]+)"$', project_text, re.MULTILINE)
+    if version_match is None:
+        raise ValueError("Unable to determine the project version")
+    version = version_match.group(1)
+    overview = (root.findtext("Overview") or "").strip()
+    if f"v{version}" not in overview:
+        raise ValueError(f"Overview must display the current release v{version}")
+    if not any(
+        (branch.findtext("Tag") or "").strip() == version for branch in root.findall("Branch")
+    ):
+        raise ValueError(f"Template has no branch for the current release {version}")
+
     template_date = date.fromisoformat((root.findtext("Date") or "").strip())
     if template_date > date.today():
         raise ValueError("Template date must not be in the future")
@@ -59,6 +73,10 @@ def main() -> None:
         width, height = png_dimensions(path)
         if width < 1200 or height < 600:
             raise ValueError(f"Screenshot is too small ({width}x{height}): {path}")
+
+    expected_previews = [ROOT / "preview.png", ROOT / "preview2.png", ROOT / "preview3.png"]
+    if [local_asset(url) for url in screenshots] != expected_previews:
+        raise ValueError("Screenshots must use the Community Applications preview*.png convention")
 
     print(f"Validated {TEMPLATE.relative_to(ROOT)} with {len(screenshots)} screenshots")
 

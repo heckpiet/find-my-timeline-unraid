@@ -7,7 +7,7 @@
   <Privileged>false</Privileged>
   <Icon>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/icon.svg</Icon>
   <WebUI>http://[IP]:[PORT:5000]/</WebUI>
-  <Overview>Private, self-hosted location history for Apple Find My devices. Find My Timeline stores positions locally in SQLite and presents routes, timestamps, battery levels and a chronological timeline in a responsive WebUI. Includes persistent Unraid appdata, Docker health checks and guided Apple two-factor authentication.</Overview>
+  <Overview>Find My Timeline v0.4.5 provides private, self-hosted location history for Apple Find My devices. It stores positions locally in SQLite and presents routes, timestamps, battery levels and a chronological timeline in a responsive WebUI. Includes persistent Unraid appdata, Docker health checks and guided Apple two-factor authentication.</Overview>
   <Support>https://github.com/heckpiet/find-my-timeline-unraid/issues</Support>
   <Project>https://github.com/heckpiet/find-my-timeline-unraid</Project>
   <TemplateURL>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/templates/find-my-timeline.xml</TemplateURL>
@@ -15,13 +15,13 @@
   <Category>Tools:Utilities</Category>
   <ExtraSearchTerms>Apple Find My location history timeline iCloud tracking map GPS responsive dashboard mobile self-hosted</ExtraSearchTerms>
   <Requires>Apple ID with two-factor authentication, internet access and persistent appdata storage. Complete initial authentication in the guided WebUI. Location history is sensitive: keep the WebUI on a trusted LAN or access it through a VPN or authenticated HTTPS reverse proxy. Do not expose it directly to the internet.</Requires>
-  <Changes>Version 0.4.5 adds privacy-safe aggregate polling logs. The Community Applications listing now uses cache-safe PNG screenshots and streamlined installation guidance.</Changes>
+  <Changes>Version 0.4.5 adds privacy-safe aggregate polling logs. The Community Applications listing now includes compatible preview assets, cache-safe PNG screenshots and streamlined installation guidance.</Changes>
   <Date>2026-08-04</Date>
   <MinVer>6.12.0</MinVer>
   <License>MIT</License>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/unraid-dashboard.png</Screenshot>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/unraid-timeline.png</Screenshot>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/unraid-settings.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview2.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview3.png</Screenshot>
   <DefaultTagDescription>Latest stable release</DefaultTagDescription>
   <Branch>
     <Tag>0.4.5</Tag>
