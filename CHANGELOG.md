@@ -6,6 +6,16 @@ The project follows Semantic Versioning. Release images are published from match
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-08-04
+
+### Changed
+
+- Clarify which saved Apple ID is used during setup and re-authentication.
+- Separate the Apple ID email address from the password for that Apple Account.
+- Add accessible Show/Hide controls to all password fields in the authentication dialog.
+- Improve field guidance, focus handling and desktop dialog spacing.
+- Version static asset URLs so Unraid updates cannot leave an older WebUI in the browser cache.
+
 ## [0.4.1] - 2026-08-04
 
 ### Added
@@ -162,4 +172,5 @@ The release candidate was tested successfully on Unraid OS 7.3.2 with:
 [0.3.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.3.0
 [0.4.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.0
 [0.4.1]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.1
+[0.4.2]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.2
 [0.1.0]: https://github.com/heckpiet/find-my-timeline-unraid/commits/master

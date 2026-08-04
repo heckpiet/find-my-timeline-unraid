@@ -7,7 +7,7 @@
 
 Self-hosted Apple Find My location history for Unraid. It records device positions in a local SQLite database and turns them into an interactive route map and chronological timeline.
 
-**Current stable release:** `0.4.1` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
+**Current stable release:** `0.4.2` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
 
 > Unofficial Unraid-focused fork. This project is not affiliated with or endorsed by Apple or Lime Technology.
 
@@ -58,6 +58,7 @@ The WebUI provides an interactive map, device selection, exact date and time fil
 - credential-free container startup with persistent WebUI Apple ID onboarding
 - separate administrator password for authentication actions
 - masked Apple ID display
+- explicit Apple ID and Apple Account password guidance with Show/Hide password controls
 - expiring in-memory authentication flow
 - security-focused response headers
 - Docker health check
@@ -96,7 +97,7 @@ Do not expose the WebUI directly to the public internet. Use a trusted local net
 2. Select **Set up & re-authenticate**.
 3. Enter the Apple ID email address.
 4. Create and confirm a long, unique WebUI administrator password.
-5. Enter the Apple ID password.
+5. Enter the password belonging to the displayed Apple ID. This is your Apple Account password, not the WebUI administrator password. Use **Show** if you need to verify an entry before continuing.
 6. Enter the verification code shown on a trusted Apple device.
 7. Confirm that the WebUI reports a successful session renewal and the poller resumes.
 
@@ -136,7 +137,7 @@ ghcr.io/heckpiet/find-my-timeline-unraid:latest
 Pinned stable image:
 
 ```text
-ghcr.io/heckpiet/find-my-timeline-unraid:0.4.1
+ghcr.io/heckpiet/find-my-timeline-unraid:0.4.2
 ```
 
 ### Required persistent paths
@@ -296,7 +297,7 @@ Check the container logs and verify that the WebUI is listening on port `5000`. 
 
 ## Validation status
 
-The current `0.4.1` release is verified by the release pipeline before publication. CI covers repository privacy scanning, Python 3.10, 3.11 and 3.12, linting and formatting, tests with a 70% coverage threshold, built-wheel installation, the Unraid XML template, CodeQL analysis, and a credential-free rendered-WebUI container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
+The current `0.4.2` release is verified by the release pipeline before publication. CI covers repository privacy scanning, Python 3.10, 3.11 and 3.12, linting and formatting, tests with a 70% coverage threshold, built-wheel installation, the Unraid XML template, CodeQL analysis, and a credential-free rendered-WebUI container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
 
 The optional, manually approved Unraid runner workflow uses temporary data and never mounts production appdata. The original end-to-end Unraid validation was performed on Unraid OS 7.3.2.
 
@@ -324,7 +325,7 @@ ruff check .
 pytest
 ```
 
-Pull requests run the privacy scan, Python test matrix, linting and formatting, package installation, CodeQL, template validation and a rendered-WebUI container smoke test. A version tag such as `v0.4.1` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. Dependabot proposes grouped weekly dependency updates. See [`SECURITY.md`](SECURITY.md) for private reporting and [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
+Pull requests run the privacy scan, Python test matrix, linting and formatting, package installation, CodeQL, template validation and a rendered-WebUI container smoke test. A version tag such as `v0.4.2` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. Dependabot proposes grouped weekly dependency updates. See [`SECURITY.md`](SECURITY.md) for private reporting and [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
 
 ## Support and contributions
 

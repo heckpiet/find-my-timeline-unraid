@@ -96,3 +96,11 @@ The automated Unraid smoke workflow uses an empty temporary data directory and d
 - verify all documentation screenshots use synthetic accounts, devices and locations
 - confirm screenshots contain no text, EXIF or GPS metadata
 - confirm the public issue and pull-request guidance does not request production credentials or data
+
+## Version 0.4.2 release-candidate checks
+
+- confirm a fresh Unraid container clearly asks for the Apple ID email address and its Apple Account password as separate fields
+- verify the dialog states whether no Apple ID is saved or shows the masked Apple ID used for re-authentication
+- verify Show/Hide works independently for the WebUI password, its confirmation and the Apple Account password
+- confirm password values remain masked again after successful authentication or reopening the container
+- recreate the container with both persistent appdata mappings and confirm the saved Apple ID remains available

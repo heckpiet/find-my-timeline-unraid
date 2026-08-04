@@ -58,7 +58,7 @@
   display: flex;
 }
 .auth-dialog {
-  width: min(430px, calc(100vw - 32px));
+  width: min(520px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   overflow-y: auto;
   background: #16213e;
@@ -77,9 +77,38 @@
 }
 .auth-dialog label {
   display: block;
-  margin-top: 10px;
+  font-weight: 600;
 }
-.auth-dialog input {
+.auth-field {
+  margin-top: 14px;
+}
+.auth-field small {
+  display: block;
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.auth-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 14px 0 4px;
+  padding: 11px 12px;
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  border-radius: 9px;
+  background: rgba(14, 116, 144, 0.12);
+}
+.auth-identity span {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.auth-identity strong {
+  overflow-wrap: anywhere;
+}
+.auth-dialog input:not([type="checkbox"]) {
   width: 100%;
   margin-top: 6px;
   padding: 10px 12px;
@@ -88,10 +117,33 @@
   background: #0c1425;
   color: #fff;
 }
-.auth-dialog input:focus {
+.auth-dialog input:not([type="checkbox"]):focus {
   border-color: #38bdf8;
   outline: 2px solid rgba(56, 189, 248, 0.2);
   outline-offset: 1px;
+}
+.auth-password-control {
+  position: relative;
+}
+.auth-password-control input {
+  padding-right: 72px !important;
+}
+.auth-password-control .password-toggle {
+  position: absolute;
+  right: 5px;
+  top: 11px;
+  min-width: 56px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: #25324d;
+  color: #bae6fd;
+  font-size: 0.75rem;
+}
+.auth-password-control .password-toggle:hover,
+.auth-password-control .password-toggle:focus-visible {
+  background: #33476a;
+  outline: 2px solid rgba(56, 189, 248, 0.55);
 }
 .auth-warning {
   margin-top: 12px;
@@ -137,11 +189,20 @@
   min-height: 1.3em;
 }
 .auth-security {
-  font-size: 0.76rem !important;
-  color: #94a3b8 !important;
+  font-size: 0.76rem;
+  color: #94a3b8;
   border-top: 1px solid #334155;
   padding-top: 10px;
   margin-top: 14px;
+}
+.auth-security summary {
+  cursor: pointer;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+.auth-security p {
+  margin: 8px 0 0;
+  color: #94a3b8;
 }
 @media (max-width: 760px) {
   .auth-settings-body {
