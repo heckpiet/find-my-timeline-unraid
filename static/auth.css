@@ -108,7 +108,8 @@
 .auth-identity strong {
   overflow-wrap: anywhere;
 }
-.auth-dialog input:not([type="checkbox"]) {
+.auth-dialog input:not([type="checkbox"]),
+.auth-dialog select {
   width: 100%;
   margin-top: 6px;
   padding: 10px 12px;
@@ -117,7 +118,8 @@
   background: #0c1425;
   color: #fff;
 }
-.auth-dialog input:not([type="checkbox"]):focus {
+.auth-dialog input:not([type="checkbox"]):focus,
+.auth-dialog select:focus {
   border-color: #38bdf8;
   outline: 2px solid rgba(56, 189, 248, 0.2);
   outline-offset: 1px;

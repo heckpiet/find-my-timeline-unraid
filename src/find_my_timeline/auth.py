@@ -23,6 +23,7 @@ class ICloudAuth:
         self._cookie_dir.mkdir(exist_ok=True)
         self._metadata_file = self._cookie_dir / "auth-metadata.json"
         self._lock = RLock()
+        self._web_2sa_device: dict | None = None
 
     def _session_paths(self) -> tuple[Path, Path]:
         username_clean = self.username.replace("@", "").replace(".", "")
@@ -73,16 +74,59 @@ class ICloudAuth:
             self.api = self._create_service(password)
             password = None
             if self.api.requires_2sa:
-                raise AuthenticationError(
-                    "Legacy two-step authentication is not supported in the WebUI. Use the CLI."
-                )
+                devices = self.api.trusted_devices
+                if not devices:
+                    raise AuthenticationError("Apple did not return a trusted verification device")
+                self._web_2sa_device = None
+                return {
+                    "requires_2fa": False,
+                    "requires_2sa": True,
+                    "status": "waiting_for_device",
+                    "trusted_devices": [
+                        {"index": index, "label": f"Trusted device {index + 1}"}
+                        for index in range(len(devices))
+                    ],
+                }
             if self.api.requires_2fa:
                 request_code = getattr(self.api, "request_2fa_code", None)
                 if callable(request_code):
                     request_code()
-                return {"requires_2fa": True, "status": "waiting_for_code"}
+                return {
+                    "requires_2fa": True,
+                    "requires_2sa": False,
+                    "status": "waiting_for_code",
+                }
             self.record_successful_authentication()
-            return {"requires_2fa": False, "status": "authenticated"}
+            return {
+                "requires_2fa": False,
+                "requires_2sa": False,
+                "status": "authenticated",
+            }
+
+    def send_web_2sa_code(self, device_index: int) -> None:
+        """Send a legacy two-step code without exposing trusted-device details."""
+        with self._lock:
+            if not self.api or not self.api.requires_2sa:
+                raise AuthenticationError("No active two-step authentication request")
+            devices = self.api.trusted_devices
+            if device_index < 0 or device_index >= len(devices):
+                raise AuthenticationError("Select a valid trusted device")
+            device = devices[device_index]
+            if not self.api.send_verification_code(device):
+                raise AuthenticationError("Apple could not send the verification code")
+            self._web_2sa_device = device
+
+    def complete_web_2sa(self, code: str) -> None:
+        """Validate a legacy two-step code for the selected trusted device."""
+        if not code or not code.isdigit() or len(code) not in {4, 6, 8}:
+            raise AuthenticationError("Enter the verification code sent to the trusted device")
+        with self._lock:
+            if not self.api or not self.api.requires_2sa or not self._web_2sa_device:
+                raise AuthenticationError("Send a code to a trusted device first")
+            if not self.api.validate_verification_code(self._web_2sa_device, code):
+                raise AuthenticationError("The verification code was rejected")
+            self._web_2sa_device = None
+            self.record_successful_authentication()
 
     def complete_web_2fa(self, code: str) -> None:
         """Validate a 2FA code for a previously started web flow."""
