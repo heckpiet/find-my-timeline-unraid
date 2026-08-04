@@ -30,6 +30,7 @@ Self-hosted Apple Find My location history for Unraid. It records device positio
 ![Find My Timeline settings and system status](docs/images/unraid-settings.png)
 
 The screenshots use synthetic demonstration devices and locations; no production location history is included in the repository.
+The root-level `preview.png`, `preview2.png` and `preview3.png` copies provide compatibility with the Community Applications media gallery.
 
 ## What this project does
 
