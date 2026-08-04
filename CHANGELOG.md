@@ -6,6 +6,14 @@ The project follows Semantic Versioning. Release images are published from match
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-08-04
+
+### Changed
+
+- Replace per-device polling messages with privacy-safe aggregate counts.
+- Keep device names and identifiers out of normal container logs while retaining useful polling diagnostics.
+- Document the successful end-to-end validation of Apple authentication, device discovery and location persistence.
+
 ## [0.4.4] - 2026-08-04
 
 ### Fixed
@@ -194,4 +202,5 @@ The release candidate was tested successfully on Unraid OS 7.3.2 with:
 [0.4.2]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.2
 [0.4.3]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.3
 [0.4.4]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.4
+[0.4.5]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.5
 [0.1.0]: https://github.com/heckpiet/find-my-timeline-unraid/commits/master

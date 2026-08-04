@@ -77,6 +77,10 @@ class LocationPoller:
         devices = self.auth.get_devices()
 
         recorded = []
+        unavailable_count = 0
+        invalid_count = 0
+        stale_count = 0
+        duplicate_count = 0
 
         for device in devices:
             device_id = device["id"]
@@ -91,14 +95,14 @@ class LocationPoller:
             )
 
             if not location:
-                logger.warning("No location available for device %s", device["name"])
+                unavailable_count += 1
                 continue
 
             latitude = location.get("latitude")
             longitude = location.get("longitude")
 
             if latitude is None or longitude is None:
-                logger.warning("Invalid coordinates for device %s", device["name"])
+                invalid_count += 1
                 continue
 
             # Parse timestamp (Apple returns milliseconds since epoch)
@@ -107,13 +111,13 @@ class LocationPoller:
                 timestamp = datetime.fromtimestamp(timestamp_ms / 1000, timezone.utc)
             elif location.get("isOld", False):
                 # Skip if location is marked as old/stale and no timestamp
-                logger.info("Skipping stale location for %s", device["name"])
+                stale_count += 1
                 continue
             else:
                 timestamp = datetime.now(timezone.utc)
 
             if self.database.location_exists(device_id, timestamp):
-                logger.debug("Skipping duplicate location for %s", device["name"])
+                duplicate_count += 1
                 continue
 
             # Record the location
@@ -140,7 +144,16 @@ class LocationPoller:
             }
             recorded.append(recorded_location)
 
-            logger.info("Recorded a new location for %s at %s", device["name"], timestamp)
+        logger.info(
+            "Processed %d device(s): %d recorded, %d unavailable, %d invalid, "
+            "%d stale, %d duplicate",
+            len(devices),
+            len(recorded),
+            unavailable_count,
+            invalid_count,
+            stale_count,
+            duplicate_count,
+        )
 
         # Call registered callbacks
         for callback in self._on_poll_callbacks:
