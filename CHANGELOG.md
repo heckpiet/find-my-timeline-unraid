@@ -6,6 +6,13 @@ The project follows Semantic Versioning. Release images are published from match
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-08-04
+
+### Fixed
+
+- Prioritize modern Apple two-factor authentication when `pyicloud` reports both modern 2FA and the broader two-step requirement.
+- Show the verification-code field directly when Apple has already delivered a modern 2FA code instead of incorrectly requesting a legacy trusted-device list.
+
 ## [0.4.3] - 2026-08-04
 
 ### Added
@@ -186,4 +193,5 @@ The release candidate was tested successfully on Unraid OS 7.3.2 with:
 [0.4.1]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.1
 [0.4.2]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.2
 [0.4.3]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.3
+[0.4.4]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.4
 [0.1.0]: https://github.com/heckpiet/find-my-timeline-unraid/commits/master
