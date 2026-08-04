@@ -1,3 +1,4 @@
+import logging
 import time
 from threading import Thread
 
@@ -65,3 +66,35 @@ def test_poller_waits_for_webui_setup_without_credentials(tmp_path):
     thread.join(timeout=1)
     assert not thread.is_alive()
     assert poller.status()["state"] == "stopped"
+
+
+def test_poll_logs_aggregate_counts_without_private_device_names(tmp_path, caplog):
+    caplog.set_level(logging.INFO, logger="find_my_timeline.poller")
+
+    class DeviceAuth:
+        def get_devices(self):
+            return [
+                {
+                    "id": "private-device-id",
+                    "name": "Private device name",
+                    "location": {
+                        "latitude": 52.0,
+                        "longitude": 13.0,
+                        "timeStamp": 1_700_000_000_000,
+                    },
+                },
+                {
+                    "id": "offline-device-id",
+                    "name": "Another private device",
+                    "location": None,
+                },
+            ]
+
+    poller = LocationPoller(DeviceAuth(), LocationDatabase(tmp_path / "locations.db"))
+
+    recorded = poller.poll_once()
+
+    assert len(recorded) == 1
+    assert "Processed 2 device(s): 1 recorded, 1 unavailable" in caplog.text
+    assert "Private device name" not in caplog.text
+    assert "Another private device" not in caplog.text

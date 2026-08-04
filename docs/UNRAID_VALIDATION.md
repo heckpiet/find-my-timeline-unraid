@@ -119,3 +119,10 @@ The automated Unraid smoke workflow uses an empty temporary data directory and d
 - confirm the code arrives on the Apple device and the WebUI immediately displays the verification-code field
 - verify the modern 2FA path does not query or require the legacy trusted-device list
 - submit the current code and confirm the session and Apple ID persist across an Unraid container recreation
+
+## Version 0.4.5 release-candidate checks
+
+- complete Apple authentication and confirm device discovery and location persistence on a real Unraid-compatible container
+- run multiple polling cycles and verify aggregate counts remain useful for diagnostics
+- confirm normal container logs contain no device names, device identifiers or precise coordinates
+- recreate the container with both persistent mappings and confirm polling resumes without repeating setup
