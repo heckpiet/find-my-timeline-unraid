@@ -6,6 +6,19 @@ The project follows Semantic Versioning. Release images are published from match
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-04
+
+### Added
+
+- Add a CI privacy scan that rejects non-synthetic email addresses in tracked text files.
+- Reject PNG text/EXIF metadata and JPEG EXIF metadata from repository images.
+- Add a pull-request privacy checklist covering Apple IDs, device identifiers and real locations.
+- Add private vulnerability and privacy-incident reporting guidance.
+
+### Changed
+
+- Make synthetic screenshot and fixture requirements explicit in contributor documentation.
+
 ## [0.4.0] - 2026-08-04
 
 ### Added
@@ -148,4 +161,5 @@ The release candidate was tested successfully on Unraid OS 7.3.2 with:
 [0.2.2]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.2.2
 [0.3.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.3.0
 [0.4.0]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.0
+[0.4.1]: https://github.com/heckpiet/find-my-timeline-unraid/releases/tag/v0.4.1
 [0.1.0]: https://github.com/heckpiet/find-my-timeline-unraid/commits/master

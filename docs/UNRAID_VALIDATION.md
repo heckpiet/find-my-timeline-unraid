@@ -89,3 +89,10 @@ The automated Unraid smoke workflow uses an empty temporary data directory and d
 - verify a password shorter than 12 characters is rejected unless both risk confirmations are supplied
 - verify a strong administrator password does not show or require the weak-password warning
 - confirm successful onboarding changes the poller from `waiting_for_setup` to active polling
+
+## Version 0.4.1 release-candidate checks
+
+- confirm `python scripts/privacy_scan.py` passes on the exact release commit
+- verify all documentation screenshots use synthetic accounts, devices and locations
+- confirm screenshots contain no text, EXIF or GPS metadata
+- confirm the public issue and pull-request guidance does not request production credentials or data

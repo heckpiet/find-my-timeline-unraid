@@ -15,14 +15,18 @@
   <Category>Tools:Utilities</Category>
   <ExtraSearchTerms>Apple Find My location history timeline iCloud tracking map GPS responsive dashboard mobile self-hosted</ExtraSearchTerms>
   <Requires>Requires an Apple ID with two-factor authentication, internet access and persistent Unraid appdata storage. Initial Apple authentication must be completed through the protected WebUI flow or the container console. The WebUI contains sensitive location history and does not provide full access control for the map and APIs. Use only on a trusted local network, through a VPN or behind an authenticated HTTPS reverse proxy.</Requires>
-  <Changes>Version 0.4.0 adds complete credential-free first-run onboarding in the WebUI. Enter the Apple ID, Apple password and 2FA code after opening the container. The Apple ID persists in the protected session mapping; Apple passwords and codes are never stored. Weak WebUI passwords require two explicit risk confirmations.</Changes>
+  <Changes>Version 0.4.1 adds mandatory repository privacy scanning, screenshot metadata protection, a pull-request privacy checklist and private incident-reporting guidance. Runtime onboarding remains credential-free and Apple passwords and codes are never stored.</Changes>
   <Date>2026-08-03</Date>
   <MinVer>6.12.0</MinVer>
   <License>MIT</License>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/dashboard-map.png</Screenshot>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/settings.png</Screenshot>
-  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/timeline.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/dashboard-map.jpg</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/settings.jpg</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/docs/images/timeline.jpg</Screenshot>
   <DefaultTagDescription>Latest stable release</DefaultTagDescription>
+  <Branch>
+    <Tag>0.4.1</Tag>
+    <TagDescription>Version 0.4.1 with automated repository privacy safeguards</TagDescription>
+  </Branch>
   <Branch>
     <Tag>0.4.0</Tag>
     <TagDescription>Version 0.4.0 with credential-free startup and persistent WebUI onboarding</TagDescription>
