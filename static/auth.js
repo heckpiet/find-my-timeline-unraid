@@ -53,6 +53,11 @@
         </div>
         <small id="apple-password-help">This means your Apple Account password — not the WebUI password.</small>
       </div>
+      <div id="auth-device-row" class="auth-field" hidden>
+        <label for="auth-device">Send verification code to</label>
+        <select id="auth-device"></select>
+        <small>Apple identifies this account as using legacy two-step verification. Device names stay on the server and are not shown here.</small>
+      </div>
       <div id="auth-code-row" class="auth-field" hidden><label for="auth-code">Apple verification code</label><input id="auth-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></div>
       <p id="auth-error" class="auth-error"></p>
       <details class="auth-security">
@@ -64,6 +69,7 @@
   document.body.appendChild(modal);
 
   let waitingForCode = false;
+  let waitingForDevice = false;
   let setupRequired = false;
   let usernameConfigured = false;
   let maskedUsername = "";
@@ -146,6 +152,24 @@
     };
   }
 
+  function showLegacyDeviceStep(devices) {
+    const select = document.getElementById("auth-device");
+    select.replaceChildren();
+    devices.forEach((device) => {
+      const option = document.createElement("option");
+      option.value = String(device.index);
+      option.textContent = device.label;
+      select.appendChild(option);
+    });
+    waitingForDevice = true;
+    document.getElementById("auth-device-row").hidden = false;
+    document.getElementById("apple-password-row").hidden = true;
+    document.getElementById("auth-step").textContent =
+      "Choose a trusted device. Apple will send the verification code there.";
+    submitButton.textContent = "Send code";
+    select.focus();
+  }
+
   function setPasswordVisibility(button, visible) {
     const input = document.getElementById(button.dataset.passwordTarget);
     input.type = visible ? "text" : "password";
@@ -184,7 +208,11 @@
     errorEl.textContent = "";
     submitButton.disabled = true;
     try {
-      const endpoint = waitingForCode ? "/api/auth/verify" : "/api/auth/start";
+      const endpoint = waitingForCode
+        ? "/api/auth/verify"
+        : waitingForDevice
+          ? "/api/auth/2sa/send"
+          : "/api/auth/start";
       const adminValue = document.getElementById("auth-admin").value;
       if (!waitingForCode && setupRequired) {
         const confirmation =
@@ -203,17 +231,23 @@
       }
       const body = waitingForCode
         ? { code: document.getElementById("auth-code").value.trim() }
-        : {
-            password: document.getElementById("auth-password").value,
-            username: document.getElementById("auth-username").value.trim(),
-            admin_password: adminValue,
-            accept_weak_password_warning: document.getElementById(
-              "weak-warning-accept",
-            ).checked,
-            confirm_weak_password_warning: document.getElementById(
-              "weak-warning-confirm",
-            ).checked,
-          };
+        : waitingForDevice
+          ? {
+              device_index: Number(
+                document.getElementById("auth-device").value,
+              ),
+            }
+          : {
+              password: document.getElementById("auth-password").value,
+              username: document.getElementById("auth-username").value.trim(),
+              admin_password: adminValue,
+              accept_weak_password_warning: document.getElementById(
+                "weak-warning-accept",
+              ).checked,
+              confirm_weak_password_warning: document.getElementById(
+                "weak-warning-confirm",
+              ).checked,
+            };
       const response = await fetch(endpoint, {
         method: "POST",
         headers: adminHeaders(),
@@ -222,7 +256,18 @@
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error || "Authentication failed");
-      if (result.requires_2fa) {
+      if (result.requires_2sa) {
+        showLegacyDeviceStep(result.trusted_devices || []);
+      } else if (waitingForDevice && result.status === "waiting_for_code") {
+        waitingForDevice = false;
+        waitingForCode = true;
+        document.getElementById("auth-device-row").hidden = true;
+        document.getElementById("auth-code-row").hidden = false;
+        document.getElementById("auth-step").textContent =
+          "Enter the code Apple sent to the selected trusted device.";
+        submitButton.textContent = "Verify code";
+        document.getElementById("auth-code").focus();
+      } else if (result.requires_2fa) {
         waitingForCode = true;
         document.getElementById("auth-code-row").hidden = false;
         document.getElementById("apple-password-row").hidden = true;
@@ -231,12 +276,14 @@
         submitButton.textContent = "Verify code";
       } else {
         waitingForCode = false;
+        waitingForDevice = false;
         modal.classList.remove("visible");
         document.getElementById("auth-password").value = "";
         document.getElementById("auth-code").value = "";
         document.getElementById("auth-admin").value = "";
         document.getElementById("auth-admin-confirm").value = "";
         document.getElementById("auth-username").value = "";
+        document.getElementById("auth-device-row").hidden = true;
         document.getElementById("weak-warning-accept").checked = false;
         document.getElementById("weak-warning-confirm").checked = false;
         document

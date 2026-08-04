@@ -46,6 +46,27 @@ class AuthStub:
         return []
 
 
+class LegacyTwoStepAuthStub(AuthStub):
+    def __init__(self, username="person@example.com", password=None):
+        super().__init__(username, password)
+        self.sent_device_index = None
+        self.verified_code = None
+
+    def begin_web_authentication(self, password):
+        return {
+            "requires_2fa": False,
+            "requires_2sa": True,
+            "status": "waiting_for_device",
+            "trusted_devices": [{"index": 0, "label": "Trusted device 1"}],
+        }
+
+    def send_web_2sa_code(self, device_index):
+        self.sent_device_index = device_index
+
+    def complete_web_2sa(self, code):
+        self.verified_code = code
+
+
 def make_client(tmp_path, monkeypatch, with_auth=False):
     monkeypatch.delenv("WEB_AUTH_DISABLED", raising=False)
     monkeypatch.setenv("WEB_ADMIN_PASSWORD", "test-admin-password" if with_auth else "")
@@ -105,6 +126,8 @@ def test_health_and_system_status(tmp_path, monkeypatch):
     assert auth_asset.data.count(b'data-password-target="') == 3
     assert b"Apple ID used for Find My" in auth_asset.data
     assert b"Security and storage details" in auth_asset.data
+    assert b"/api/auth/2sa/send" in auth_asset.data
+    assert b"Send verification code to" in auth_asset.data
 
 
 def test_location_query_rejects_invalid_parameters(tmp_path, monkeypatch):
@@ -126,6 +149,46 @@ def test_successful_web_reauthentication_wakes_poller(tmp_path, monkeypatch):
 
     assert verified.status_code == 200
     assert poller.wake_calls == 1
+
+
+def test_legacy_two_step_web_flow_sends_and_verifies_code(tmp_path, monkeypatch):
+    monkeypatch.delenv("WEB_ADMIN_PASSWORD", raising=False)
+    monkeypatch.setattr("find_my_timeline.web.ICloudAuth", LegacyTwoStepAuthStub)
+    session_directory = tmp_path / "session"
+    identity_store = AppleIdentityStore(session_directory)
+    poller = PollerStub()
+    app = create_app(
+        LocationDatabase(tmp_path / "locations.db"),
+        None,
+        poller,
+        WebAdminStore(session_directory),
+        identity_store,
+    )
+    app.config.update(TESTING=True)
+    client = app.test_client()
+    admin_password = "strong-admin-password"
+    headers = {"X-Admin-Password": admin_password}
+
+    started = client.post(
+        "/api/auth/start",
+        json={
+            "username": "person@example.com",
+            "password": "temporary-apple-password",
+            "admin_password": admin_password,
+        },
+    )
+    assert started.status_code == 200
+    assert started.get_json()["status"] == "waiting_for_device"
+    assert started.get_json()["trusted_devices"] == [{"index": 0, "label": "Trusted device 1"}]
+
+    sent = client.post("/api/auth/2sa/send", headers=headers, json={"device_index": 0})
+    assert sent.status_code == 200
+    verified = client.post("/api/auth/verify", headers=headers, json={"code": "123456"})
+
+    assert verified.status_code == 200
+    assert poller.auth.sent_device_index == 0
+    assert poller.auth.verified_code == "123456"
+    assert identity_store.load() == "person@example.com"
 
 
 def test_first_run_setup_ignores_legacy_disabled_flag_and_persists_hash(tmp_path, monkeypatch):

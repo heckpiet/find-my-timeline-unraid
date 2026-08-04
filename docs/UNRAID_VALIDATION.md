@@ -104,3 +104,11 @@ The automated Unraid smoke workflow uses an empty temporary data directory and d
 - verify Show/Hide works independently for the WebUI password, its confirmation and the Apple Account password
 - confirm password values remain masked again after successful authentication or reopening the container
 - recreate the container with both persistent appdata mappings and confirm the saved Apple ID remains available
+
+## Version 0.4.3 release-candidate checks
+
+- authenticate an account reported by Apple as requiring legacy two-step verification
+- confirm the WebUI lists only generic trusted-device labels and exposes no device name or phone details
+- select a trusted device, request a code and verify it without using the container console
+- confirm the Apple password and verification code are absent from both persistent appdata mappings
+- recreate the Unraid container and confirm the completed Apple session and saved Apple ID remain available

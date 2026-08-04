@@ -45,6 +45,8 @@ def create_app(
     state = {
         "started_at": 0.0,
         "waiting_for_code": False,
+        "waiting_for_device": False,
+        "auth_method": None,
         "pending_admin": None,
         "pending_username": None,
         "auth": auth,
@@ -77,6 +79,14 @@ def create_app(
         if not valid:
             return {"error": "Administrator authentication failed"}, 401
         return None
+
+    def require_flow_admin(pending_admin: dict | None) -> tuple[dict, int] | None:
+        if pending_admin:
+            supplied = request.headers.get("X-Admin-Password", "")
+            if not admin_store.verify(supplied, pending_admin):
+                return {"error": "Administrator authentication failed"}, 401
+            return None
+        return require_admin()
 
     @app.after_request
     def security_headers(response):
@@ -130,10 +140,15 @@ def create_app(
             lifetime_days=lifetime_days,
         )
         with state_lock:
-            if state["waiting_for_code"] and time.monotonic() - state["started_at"] <= auth_timeout:
+            flow_active = time.monotonic() - state["started_at"] <= auth_timeout
+            if state["waiting_for_device"] and flow_active:
+                status["flow_state"] = "waiting_for_device"
+            elif state["waiting_for_code"] and flow_active:
                 status["flow_state"] = "waiting_for_code"
             else:
                 state["waiting_for_code"] = False
+                state["waiting_for_device"] = False
+                state["auth_method"] = None
                 status["flow_state"] = "idle"
         return jsonify(status)
 
@@ -172,19 +187,52 @@ def create_app(
             ), 400
         try:
             result = handler.begin_web_authentication(password)
+            requires_verification = bool(result.get("requires_2fa") or result.get("requires_2sa"))
             with state_lock:
                 state["started_at"] = time.monotonic()
                 state["waiting_for_code"] = bool(result["requires_2fa"])
+                state["waiting_for_device"] = bool(result.get("requires_2sa"))
+                state["auth_method"] = "2sa" if result.get("requires_2sa") else "2fa"
                 state["pending_admin"] = pending_admin
                 state["pending_username"] = username
                 state["auth"] = handler
-            if pending_admin and not result["requires_2fa"]:
+            if pending_admin and not requires_verification:
                 admin_store.save(pending_admin)
                 with state_lock:
                     state["pending_admin"] = None
-            if not result["requires_2fa"]:
+            if not requires_verification:
                 commit_identity(username, handler)
             return jsonify(result)
+        except AuthenticationError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.route("/api/auth/2sa/send", methods=["POST"])
+    def api_auth_2sa_send():
+        payload = request.get_json(silent=True) or {}
+        with state_lock:
+            if (
+                not state["waiting_for_device"]
+                or state["auth_method"] != "2sa"
+                or time.monotonic() - state["started_at"] > auth_timeout
+            ):
+                return jsonify({"error": "The authentication request expired. Start again."}), 409
+            pending_admin = state["pending_admin"]
+            handler = state["auth"]
+        denied = require_flow_admin(pending_admin)
+        if denied:
+            return jsonify(denied[0]), denied[1]
+        try:
+            device_index = int(payload.get("device_index", -1))
+        except (TypeError, ValueError):
+            return jsonify({"error": "Select a valid trusted device"}), 400
+        try:
+            if not handler:
+                return jsonify({"error": "No active Apple authentication request"}), 409
+            handler.send_web_2sa_code(device_index)
+            with state_lock:
+                state["waiting_for_device"] = False
+                state["waiting_for_code"] = True
+            return jsonify({"status": "waiting_for_code"})
         except AuthenticationError as exc:
             return jsonify({"error": str(exc)}), 400
 
@@ -198,6 +246,8 @@ def create_app(
                 or time.monotonic() - state["started_at"] > auth_timeout
             ):
                 state["waiting_for_code"] = False
+                state["waiting_for_device"] = False
+                state["auth_method"] = None
                 state["pending_admin"] = None
                 state["pending_username"] = None
                 state["auth"] = state["committed_auth"]
@@ -205,21 +255,21 @@ def create_app(
             pending_admin = state["pending_admin"]
             pending_username = state["pending_username"]
             handler = state["auth"]
-        if pending_admin:
-            supplied = request.headers.get("X-Admin-Password", "")
-            if not admin_store.verify(supplied, pending_admin):
-                return jsonify({"error": "Administrator authentication failed"}), 401
-        else:
-            denied = require_admin()
-            if denied:
-                return jsonify(denied[0]), denied[1]
+            auth_method = state["auth_method"]
+        denied = require_flow_admin(pending_admin)
+        if denied:
+            return jsonify(denied[0]), denied[1]
         try:
             if not handler or not pending_username:
                 return jsonify({"error": "No active Apple authentication request"}), 409
-            handler.complete_web_2fa(code)
+            if auth_method == "2sa":
+                handler.complete_web_2sa(code)
+            else:
+                handler.complete_web_2fa(code)
             handler.get_devices()
             with state_lock:
                 state["waiting_for_code"] = False
+                state["auth_method"] = None
                 state["pending_admin"] = None
             if pending_admin:
                 admin_store.save(pending_admin)
