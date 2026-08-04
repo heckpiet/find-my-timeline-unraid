@@ -74,8 +74,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - name: Parse Unraid template
-        run: python -c "import xml.etree.ElementTree as ET; ET.parse('templates/find-my-timeline.xml')"
+      - name: Validate Unraid template and store assets
+        run: python scripts/validate_unraid_template.py
 
   container-smoke:
     runs-on: ubuntu-latest
