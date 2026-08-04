@@ -50,5 +50,18 @@ def test_poller_recovers_after_authentication_without_restart(tmp_path):
 
     poller.stop()
     thread.join(timeout=1)
+
+
+def test_poller_waits_for_webui_setup_without_credentials(tmp_path):
+    database = LocationDatabase(tmp_path / "locations.db")
+    poller = LocationPoller(None, database, auth_retry_interval=60)
+    thread = Thread(target=poller.start, kwargs={"setup_signals": False}, daemon=True)
+
+    thread.start()
+    wait_until(lambda: poller.status()["state"] == "waiting_for_setup")
+
+    assert poller.status()["last_error"] == "Complete Apple setup in the WebUI"
+    poller.stop()
+    thread.join(timeout=1)
     assert not thread.is_alive()
     assert poller.status()["state"] == "stopped"

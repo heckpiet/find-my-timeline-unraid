@@ -24,8 +24,10 @@ class WebAdminStore:
     def configured(self) -> bool:
         return self.path.is_file()
 
-    def prepare(self, password: str) -> dict:
-        if len(password) < 12:
+    def prepare(self, password: str, *, allow_weak: bool = False) -> dict:
+        if not password:
+            raise ValueError("The WebUI administrator password must not be empty")
+        if len(password) < 12 and not allow_weak:
             raise ValueError("The WebUI administrator password must contain at least 12 characters")
         salt = secrets.token_bytes(16)
         digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, self.iterations)

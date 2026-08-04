@@ -74,12 +74,11 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build image
         run: docker build --tag find-my-timeline:ci .
-      - name: Start WebUI-only smoke container
+      - name: Start credential-free application container
         run: |
           docker run --detach --name find-my-timeline-ci \
             --publish 127.0.0.1:5010:5000 \
-            find-my-timeline:ci \
-            find-my-timeline web --host 0.0.0.0 --port 5000
+            find-my-timeline:ci
       - name: Wait for readiness
         run: |
           for attempt in $(seq 1 30); do
@@ -91,7 +90,9 @@ jobs:
           docker logs find-my-timeline-ci
           exit 1
       - name: Verify rendered WebUI
-        run: curl --fail --silent http://127.0.0.1:5010/ | grep --fixed-strings 'Settings &amp; status'
+        run: |
+          curl --fail --silent http://127.0.0.1:5010/ | grep --fixed-strings 'Settings &amp; status'
+          curl --fail --silent http://127.0.0.1:5010/api/auth/status | grep --fixed-strings '"username_configured":false'
       - name: Stop smoke container
         if: always()
         run: docker rm --force find-my-timeline-ci || true

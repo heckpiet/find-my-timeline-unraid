@@ -12,6 +12,7 @@ from waitress import serve
 from .auth import AuthenticationError, ICloudAuth
 from .config import AppConfig, ConfigurationError
 from .database import LocationDatabase
+from .identity import AppleIdentityStore
 from .poller import LocationPoller
 from .web import create_app
 
@@ -109,8 +110,12 @@ def web(host, port):
     """Start the web interface."""
     config = get_config()
     database = LocationDatabase(config.db_path)
-    handler = ICloudAuth(config.username, config.password) if config.username else None
-    app = create_app(database, handler, config=config)
+    identity_store = AppleIdentityStore()
+    if config.username:
+        identity_store.save(config.username)
+    username = config.username or identity_store.load()
+    handler = ICloudAuth(username, config.password) if username else None
+    app = create_app(database, handler, identity_store=identity_store, config=config)
     host = host or config.web_host
     port = port if port is not None else config.web_port
     click.echo(f"Starting web server at http://{host}:{port}")
@@ -125,15 +130,14 @@ def web(host, port):
 def start(username, password, host, port):
     """Start both the poller and web interface."""
     config = get_config()
-    username = username or config.username
+    identity_store = AppleIdentityStore()
+    if config.username:
+        identity_store.save(config.username)
+    username = username or config.username or identity_store.load()
     password = password or config.password
     host = host or config.web_host
     port = port if port is not None else config.web_port
-    if not username:
-        click.echo("Error: ICLOUD_USERNAME is required", err=True)
-        sys.exit(1)
-
-    handler = ICloudAuth(username, password)
+    handler = ICloudAuth(username, password) if username else None
     database = LocationDatabase(config.db_path)
     poller = LocationPoller(
         auth=handler,
@@ -142,12 +146,20 @@ def start(username, password, host, port):
         max_interval=config.max_interval,
         auth_retry_interval=config.auth_retry_interval,
     )
-    app = create_app(database, handler, poller, config=config)
+    app = create_app(
+        database,
+        handler,
+        poller,
+        identity_store=identity_store,
+        config=config,
+    )
 
     click.echo("Starting Find My Timeline")
     click.echo(f"  Polling interval: {config.min_interval}-{config.max_interval} minutes")
     click.echo(f"  Web interface: http://{host}:{port}")
     click.echo(f"  Database: {config.db_path}")
+    if not username:
+        click.echo("  Apple ID: complete setup in the WebUI")
 
     Thread(target=poller.start, daemon=True).start()
     try:

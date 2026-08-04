@@ -265,6 +265,7 @@
       running: "Running",
       starting: "Starting",
       authenticating: "Authenticating",
+      waiting_for_setup: "Setup required",
       waiting_for_authentication: "Authentication required",
       stopped: "Stopped",
       not_running: "Not running",
@@ -279,6 +280,7 @@
     $("live-status").classList.toggle(
       "degraded",
       poller.state === "waiting_for_authentication" ||
+        poller.state === "waiting_for_setup" ||
         poller.state === "stopped",
     );
     $("settings-version").textContent = `v${system.version || "unknown"}`;
@@ -302,13 +304,17 @@
         ? "—"
         : `${configuration.auth_retry_interval} min`;
     $("settings-timezone").textContent = configuration.timezone || "—";
+    const requiresSetup = poller.state === "waiting_for_setup";
     const requiresAuthentication =
       poller.state === "waiting_for_authentication";
-    $("system-banner").hidden = !requiresAuthentication;
-    if (requiresAuthentication) {
-      $("system-banner-title").textContent = "Apple authentication required";
-      $("system-banner-message").textContent =
-        "Location polling is paused. Renew the Apple session to continue recording.";
+    $("system-banner").hidden = !requiresSetup && !requiresAuthentication;
+    if (requiresSetup || requiresAuthentication) {
+      $("system-banner-title").textContent = requiresSetup
+        ? "Complete Apple setup"
+        : "Apple authentication required";
+      $("system-banner-message").textContent = requiresSetup
+        ? "Add your Apple ID in Settings to begin recording location history."
+        : "Location polling is paused. Renew the Apple session to continue recording.";
     }
   }
 

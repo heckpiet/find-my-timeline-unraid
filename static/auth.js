@@ -16,9 +16,16 @@
     <div class="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <h2 id="auth-title">Renew Apple session</h2>
       <p id="auth-step">Enter the WebUI administrator password and your Apple ID password.</p>
-      <label><span id="auth-admin-label">WebUI administrator password</span><input id="auth-admin" type="password" autocomplete="current-password" minlength="12"></label>
-      <label id="auth-admin-confirm-row" hidden>Confirm new administrator password<input id="auth-admin-confirm" type="password" autocomplete="new-password" minlength="12"></label>
-      <label id="apple-password-row">Apple ID password<input id="auth-password" type="password" autocomplete="off"></label>
+      <label id="apple-username-row" hidden>Apple ID<input id="auth-username" type="email" inputmode="email" autocomplete="username" placeholder="name@example.com"></label>
+      <label><span id="auth-admin-label">WebUI administrator password</span><input id="auth-admin" type="password" autocomplete="current-password"></label>
+      <label id="auth-admin-confirm-row" hidden>Confirm new administrator password<input id="auth-admin-confirm" type="password" autocomplete="new-password"></label>
+      <div id="weak-password-warning" class="auth-warning" hidden>
+        <strong>Security warning: this administrator password is weak.</strong>
+        <p>A weak password makes it easier to access your private location history. At least 12 characters are strongly recommended.</p>
+        <label><input id="weak-warning-accept" type="checkbox"> I understand that this password is not recommended and may reduce security.</label>
+        <label><input id="weak-warning-confirm" type="checkbox"> I confirm again that I deliberately want to use this weak password.</label>
+      </div>
+      <label id="apple-password-row">Apple ID password<input id="auth-password" type="password" autocomplete="current-password"></label>
       <label id="auth-code-row" hidden>Apple verification code<input id="auth-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
       <p id="auth-error" class="auth-error"></p>
       <p class="auth-security">Apple passwords and verification codes are sent only to this server and are not stored. During first-run setup, the administrator password is stored only as a salted hash in the persistent session directory. Never expose this WebUI directly to the internet; use HTTPS, a VPN, or an authenticated reverse proxy.</p>
@@ -28,6 +35,7 @@
 
   let waitingForCode = false;
   let setupRequired = false;
+  let usernameConfigured = false;
   const statusEl = document.getElementById("auth-status");
   const openButton = document.getElementById("auth-open");
   const submitButton = document.getElementById("auth-submit");
@@ -59,6 +67,7 @@
     row.append(dot, strong);
     statusEl.append(row, username);
     setupRequired = Boolean(status.setup_required);
+    usernameConfigured = Boolean(status.username_configured);
     openButton.disabled = !status.web_auth_enabled;
     openButton.textContent = setupRequired
       ? "Set up & re-authenticate"
@@ -70,6 +79,8 @@
       ? "Create WebUI administrator password"
       : "WebUI administrator password";
     document.getElementById("auth-admin-confirm-row").hidden = !setupRequired;
+    document.getElementById("apple-username-row").hidden =
+      usernameConfigured && !setupRequired;
     document.getElementById("auth-admin").autocomplete = setupRequired
       ? "new-password"
       : "current-password";
@@ -79,6 +90,16 @@
     document.getElementById("auth-step").textContent = setupRequired
       ? "Create a local administrator password, then authenticate your Apple ID."
       : "Enter the WebUI administrator password and your Apple ID password.";
+    updateWeakPasswordWarning();
+  }
+
+  function updateWeakPasswordWarning() {
+    const value = document.getElementById("auth-admin").value;
+    document.getElementById("weak-password-warning").hidden = !(
+      setupRequired &&
+      value.length > 0 &&
+      value.length < 12
+    );
   }
 
   function adminHeaders() {
@@ -93,6 +114,9 @@
     errorEl.textContent = "";
   });
   document
+    .getElementById("auth-admin")
+    .addEventListener("input", updateWeakPasswordWarning);
+  document
     .getElementById("auth-cancel")
     .addEventListener("click", () => modal.classList.remove("visible"));
 
@@ -105,18 +129,30 @@
       if (!waitingForCode && setupRequired) {
         const confirmation =
           document.getElementById("auth-admin-confirm").value;
-        if (adminValue.length < 12)
-          throw new Error(
-            "Use at least 12 characters for the administrator password",
-          );
+        if (!adminValue) throw new Error("Enter an administrator password");
         if (adminValue !== confirmation)
           throw new Error("The administrator passwords do not match");
+        if (
+          adminValue.length < 12 &&
+          (!document.getElementById("weak-warning-accept").checked ||
+            !document.getElementById("weak-warning-confirm").checked)
+        )
+          throw new Error(
+            "Confirm both security warnings to use a password shorter than 12 characters",
+          );
       }
       const body = waitingForCode
         ? { code: document.getElementById("auth-code").value.trim() }
         : {
             password: document.getElementById("auth-password").value,
+            username: document.getElementById("auth-username").value.trim(),
             admin_password: adminValue,
+            accept_weak_password_warning: document.getElementById(
+              "weak-warning-accept",
+            ).checked,
+            confirm_weak_password_warning: document.getElementById(
+              "weak-warning-confirm",
+            ).checked,
           };
       const response = await fetch(endpoint, {
         method: "POST",
@@ -140,6 +176,10 @@
         document.getElementById("auth-code").value = "";
         document.getElementById("auth-admin").value = "";
         document.getElementById("auth-admin-confirm").value = "";
+        document.getElementById("auth-username").value = "";
+        document.getElementById("weak-warning-accept").checked = false;
+        document.getElementById("weak-warning-confirm").checked = false;
+        updateWeakPasswordWarning();
         await loadStatus();
       }
     } catch (error) {

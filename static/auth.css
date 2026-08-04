@@ -59,6 +59,8 @@
 }
 .auth-dialog {
   width: min(430px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   background: #16213e;
   color: #fff;
   padding: 22px;
@@ -90,6 +92,33 @@
   border-color: #38bdf8;
   outline: 2px solid rgba(56, 189, 248, 0.2);
   outline-offset: 1px;
+}
+.auth-warning {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.65);
+  border-radius: 10px;
+  background: rgba(120, 53, 15, 0.24);
+}
+.auth-warning strong {
+  color: #fbbf24;
+}
+.auth-warning p {
+  margin: 6px 0 8px;
+}
+.auth-warning label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #fef3c7;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+.auth-warning input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  flex: 0 0 auto;
 }
 .auth-actions {
   display: flex;

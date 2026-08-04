@@ -7,7 +7,7 @@
 
 Self-hosted Apple Find My location history for Unraid. It records device positions in a local SQLite database and turns them into an interactive route map and chronological timeline.
 
-**Current stable release:** `0.3.0` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
+**Current stable release:** `0.4.0` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
 
 > Unofficial Unraid-focused fork. This project is not affiliated with or endorsed by Apple or Lime Technology.
 
@@ -55,6 +55,7 @@ The WebUI provides an interactive map, device selection, exact date and time fil
 - device cards, status metrics and exact date/time search
 - Apple session-status card and estimated re-authentication countdown
 - guided browser-based Apple 2FA and first-run administrator setup
+- credential-free container startup with persistent WebUI Apple ID onboarding
 - separate administrator password for authentication actions
 - masked Apple ID display
 - expiring in-memory authentication flow
@@ -83,23 +84,25 @@ Do not expose the WebUI directly to the public internet. Use a trusted local net
 ## Quick start on Unraid
 
 1. Install **Find My Timeline** through Community Applications.
-2. Enter your Apple ID email address in `ICLOUD_USERNAME`.
-3. Keep both persistent appdata paths enabled.
-4. Open the WebUI on the configured host port, normally port `5000`.
-5. Complete the recommended WebUI authentication below.
-6. Confirm that the poller resumes and devices appear.
-7. Confirm that the container health status becomes `healthy`.
+2. Keep both persistent appdata paths enabled.
+3. Open the WebUI on the configured host port, normally port `5000`.
+4. Complete the recommended WebUI setup below.
+5. Confirm that the poller resumes and devices appear.
+6. Confirm that the container health status becomes `healthy`.
 
 ### Recommended WebUI authentication
 
 1. Start the container and open the WebUI.
 2. Select **Set up & re-authenticate**.
-3. Create and confirm a long, unique WebUI administrator password.
-4. Enter the Apple ID password.
-5. Enter the verification code shown on a trusted Apple device.
-6. Confirm that the WebUI reports a successful session renewal and the poller resumes.
+3. Enter the Apple ID email address.
+4. Create and confirm a long, unique WebUI administrator password.
+5. Enter the Apple ID password.
+6. Enter the verification code shown on a trusted Apple device.
+7. Confirm that the WebUI reports a successful session renewal and the poller resumes.
 
-The administrator password is persisted as a salted PBKDF2 hash in `/root/.find-my-timeline/web-admin.json`; the plaintext password is never stored. Existing installations using `WEB_ADMIN_PASSWORD` remain supported. The legacy `WEB_AUTH_ENABLED` variable is ignored so an old `false` value cannot silently disable recovery. Set `WEB_AUTH_DISABLED=true` only when browser authentication must be explicitly unavailable.
+The Apple ID address is persisted in `/root/.find-my-timeline/apple-identity.json` only after successful authentication, so it survives container updates without appearing in the container environment. The administrator password is persisted as a salted PBKDF2 hash in `/root/.find-my-timeline/web-admin.json`; the plaintext password is never stored. Passwords shorter than 12 characters are accepted only after two explicit warnings and remain strongly discouraged. Existing installations using `ICLOUD_USERNAME` or `WEB_ADMIN_PASSWORD` remain supported.
+
+When upgrading an existing installation, v0.4.0 copies a legacy `ICLOUD_USERNAME` value into the persistent identity file. After one successful v0.4.0 start, remove the old Apple ID and Apple password variables from the Unraid container configuration so future starts use only WebUI onboarding and the protected session mapping.
 
 ### CLI authentication fallback
 
@@ -133,7 +136,7 @@ ghcr.io/heckpiet/find-my-timeline-unraid:latest
 Pinned stable image:
 
 ```text
-ghcr.io/heckpiet/find-my-timeline-unraid:0.3.0
+ghcr.io/heckpiet/find-my-timeline-unraid:0.4.0
 ```
 
 ### Required persistent paths
@@ -149,7 +152,7 @@ Back up both directories. The database contains movement history and the session
 
 The WebUI displays the current authentication state and an estimated remaining session lifetime. The default estimate is 90 days, but Apple may invalidate a session earlier. A successful device poll is more authoritative than the countdown.
 
-The Apple ID password and verification code entered through the WebUI are held only for the active authentication flow. They are not written to SQLite or the authentication metadata file. Apple session cookies remain stored in `/root/.find-my-timeline`.
+The Apple ID password and verification code entered through the WebUI are held only for the active authentication flow. They are not written to SQLite, identity metadata or authentication metadata. Apple session cookies and the non-secret Apple ID address remain stored in `/root/.find-my-timeline`.
 
 Legacy Apple two-step authentication remains available through the CLI only.
 
@@ -157,8 +160,8 @@ Legacy Apple two-step authentication remains available through the CLI only.
 
 | Variable | Default | Description |
 |---|---:|---|
-| `ICLOUD_USERNAME` | — | Apple ID email address whose devices should be recorded |
-| `ICLOUD_PASSWORD` | unset | Optional persistent password; leaving it unset reduces stored secrets |
+| `ICLOUD_USERNAME` | unset | Legacy optional Apple ID override; WebUI setup is recommended |
+| `ICLOUD_PASSWORD` | unset | Legacy CLI override; WebUI entry is recommended because it is not persisted |
 | `POLL_MIN_INTERVAL` | `7` | Minimum interval between Apple location requests in minutes |
 | `POLL_MAX_INTERVAL` | `10` | Maximum interval between Apple location requests in minutes |
 | `AUTH_RETRY_INTERVAL_MINUTES` | `5` | Retry delay after Apple authentication or polling failures |
@@ -234,7 +237,6 @@ docker run -d \
   --name find-my-timeline \
   --restart unless-stopped \
   -p 5000:5000 \
-  -e ICLOUD_USERNAME=your-apple-id@example.com \
   -e POLL_MIN_INTERVAL=7 \
   -e POLL_MAX_INTERVAL=10 \
   -v "$(pwd)/data:/app/data" \
@@ -294,7 +296,7 @@ Check the container logs and verify that the WebUI is listening on port `5000`. 
 
 ## Validation status
 
-The current `0.3.0` release is verified by the release pipeline before publication. CI covers Python 3.10, 3.11 and 3.12, linting and formatting, tests with a 70% coverage threshold, built-wheel installation, the Unraid XML template, CodeQL analysis, and a real rendered-WebUI container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
+The current `0.4.0` release is verified by the release pipeline before publication. CI covers Python 3.10, 3.11 and 3.12, linting and formatting, tests with a 70% coverage threshold, built-wheel installation, the Unraid XML template, CodeQL analysis, and a credential-free rendered-WebUI container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
 
 The optional, manually approved Unraid runner workflow uses temporary data and never mounts production appdata. The original end-to-end Unraid validation was performed on Unraid OS 7.3.2.
 
@@ -322,7 +324,7 @@ ruff check .
 pytest
 ```
 
-Pull requests run the Python test matrix, linting and formatting, package installation, CodeQL, template validation and a rendered-WebUI container smoke test. A version tag such as `v0.3.0` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. Dependabot proposes grouped weekly dependency updates. See [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
+Pull requests run the Python test matrix, linting and formatting, package installation, CodeQL, template validation and a rendered-WebUI container smoke test. A version tag such as `v0.4.0` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. Dependabot proposes grouped weekly dependency updates. See [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
 
 ## Support and contributions
 

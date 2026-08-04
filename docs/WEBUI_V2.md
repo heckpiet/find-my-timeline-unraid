@@ -16,6 +16,9 @@ The redesigned interface keeps the existing Flask and REST architecture while re
 - dedicated settings and operational-status view with visible application version
 - active device-filter context and one-click reset directly above the map
 - recovery guidance when Apple authentication interrupts polling
+- first-run Apple ID, Apple password and 2FA onboarding without container credentials
+- persistent Apple ID identity across updates while passwords and verification codes remain ephemeral
+- explicit two-step acknowledgement before accepting a weak administrator password
 - accessible labels, skip navigation, live regions, visible focus targets and reduced-motion support
 
 ## Technical approach
