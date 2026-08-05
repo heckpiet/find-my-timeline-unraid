@@ -12,15 +12,15 @@
     pollerLabel: "Ready",
   };
   const $ = (id) => document.getElementById(id);
-  const map = L.map("map", { zoomControl: false }).setView(
-    [51.1657, 10.4515],
-    6,
-  );
-  L.control.zoom({ position: "bottomright" }).addTo(map);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap contributors",
-    maxZoom: 19,
-  }).addTo(map);
+
+  const map = L.map('map', { zoomControl: false }).setView([51.1657, 10.4515], 6);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', 
+              { attribution: '© OpenStreetMap contributors', 
+               maxZoom: 19, 
+               referrerPolicy:'origin'}
+             ).addTo(map);
+
 
   const icons = {
     iphone: "📱",
