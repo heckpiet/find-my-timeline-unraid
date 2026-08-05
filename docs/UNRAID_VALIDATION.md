@@ -44,3 +44,85 @@
 ## Regression checks for future releases
 
 Future releases should repeat the tests above and additionally verify any new environment variables, database migrations, authentication behavior and rollback instructions.
+
+## Version 0.2.1 release-candidate checks
+
+The following checks are required before tagging 0.2.1 and must not be marked as passed solely by GitHub-hosted CI:
+
+- start with an expired or unavailable Apple session and confirm the poller enters `waiting_for_authentication` without exiting
+- complete WebUI 2FA and confirm a poll starts without restarting the container
+- temporarily interrupt outbound connectivity and confirm polling recovers afterward
+- verify `/health/live` remains healthy while Apple authentication is required
+- verify `/health/ready` reflects SQLite availability
+- confirm `/api/system/status` contains no coordinates, passwords, codes or reusable session material
+- run the manually approved `Unraid validation` workflow against the exact public 0.2.1 image
+
+The automated Unraid smoke workflow uses an empty temporary data directory and does not validate Apple authentication or production persistence. Those remain manual release checks using protected backups and the release-candidate image.
+
+## Version 0.2.2 release-candidate checks
+
+- update an existing container that still contains `WEB_AUTH_ENABLED=false` and confirm the setup button remains available
+- leave `WEB_ADMIN_PASSWORD` empty and complete **Set up & re-authenticate**
+- verify the chosen administrator password is never present in plaintext in appdata or logs
+- restart and recreate the container, then confirm the persisted administrator password still works
+- set `WEB_AUTH_DISABLED=true` and confirm browser authentication becomes unavailable
+- confirm successful first-run Apple 2FA wakes the poller without another restart
+
+## Version 0.3.0 release-candidate checks
+
+- upgrade an existing 0.2.2 container while preserving both appdata mappings
+- confirm the settings view reports version 0.3.0 and the configured non-secret runtime values
+- verify invalid ports, intervals and timeouts fail fast with a clear configuration error
+- confirm repeated observations for the same device and timestamp are not inserted twice
+- verify ordinary logs contain neither precise coordinates nor authentication secrets
+- exercise map, timeline, device filter, recovery banner and settings on desktop and mobile widths
+- install the built wheel outside the source tree and confirm templates and static assets render
+- confirm the public image is available for both `linux/amd64` and `linux/arm64`
+- run the manually approved isolated Unraid validation against the exact public 0.3.0 image
+
+## Version 0.4.0 release-candidate checks
+
+- remove `ICLOUD_USERNAME` from a fresh container and confirm the WebUI and health check start normally
+- complete Apple ID, Apple password and 2FA setup entirely through the WebUI
+- confirm `apple-identity.json` contains the Apple ID but no Apple password or verification code
+- recreate and update the container while retaining the session mapping and confirm the Apple ID remains available
+- verify a password shorter than 12 characters is rejected unless both risk confirmations are supplied
+- verify a strong administrator password does not show or require the weak-password warning
+- confirm successful onboarding changes the poller from `waiting_for_setup` to active polling
+
+## Version 0.4.1 release-candidate checks
+
+- confirm `python scripts/privacy_scan.py` passes on the exact release commit
+- verify all documentation screenshots use synthetic accounts, devices and locations
+- confirm screenshots contain no text, EXIF or GPS metadata
+- confirm the public issue and pull-request guidance does not request production credentials or data
+
+## Version 0.4.2 release-candidate checks
+
+- confirm a fresh Unraid container clearly asks for the Apple ID email address and its Apple Account password as separate fields
+- verify the dialog states whether no Apple ID is saved or shows the masked Apple ID used for re-authentication
+- verify Show/Hide works independently for the WebUI password, its confirmation and the Apple Account password
+- confirm password values remain masked again after successful authentication or reopening the container
+- recreate the container with both persistent appdata mappings and confirm the saved Apple ID remains available
+
+## Version 0.4.3 release-candidate checks
+
+- authenticate an account reported by Apple as requiring legacy two-step verification
+- confirm the WebUI lists only generic trusted-device labels and exposes no device name or phone details
+- select a trusted device, request a code and verify it without using the container console
+- confirm the Apple password and verification code are absent from both persistent appdata mappings
+- recreate the Unraid container and confirm the completed Apple session and saved Apple ID remain available
+
+## Version 0.4.4 release-candidate checks
+
+- authenticate an account for which `pyicloud` reports both `requires_2fa` and `requires_2sa`
+- confirm the code arrives on the Apple device and the WebUI immediately displays the verification-code field
+- verify the modern 2FA path does not query or require the legacy trusted-device list
+- submit the current code and confirm the session and Apple ID persist across an Unraid container recreation
+
+## Version 0.4.5 release-candidate checks
+
+- complete Apple authentication and confirm device discovery and location persistence on a real Unraid-compatible container
+- run multiple polling cycles and verify aggregate counts remain useful for diagnostics
+- confirm normal container logs contain no device names, device identifiers or precise coordinates
+- recreate the container with both persistent mappings and confirm polling resumes without repeating setup

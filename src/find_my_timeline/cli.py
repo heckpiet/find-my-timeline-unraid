@@ -1,17 +1,18 @@
 """Command-line interface for Find My Timeline."""
 
 import logging
-import os
 import sys
 from importlib.metadata import PackageNotFoundError, version
-from pathlib import Path
 from threading import Thread
 
 import click
 from dotenv import load_dotenv
+from waitress import serve
 
 from .auth import AuthenticationError, ICloudAuth
+from .config import AppConfig, ConfigurationError
 from .database import LocationDatabase
+from .identity import AppleIdentityStore
 from .poller import LocationPoller
 from .web import create_app
 
@@ -28,17 +29,12 @@ except PackageNotFoundError:
     APP_VERSION = "development"
 
 
-def get_config():
+def get_config() -> AppConfig:
     """Get configuration from environment variables."""
-    return {
-        "username": os.getenv("ICLOUD_USERNAME"),
-        "password": os.getenv("ICLOUD_PASSWORD"),
-        "min_interval": int(os.getenv("POLL_MIN_INTERVAL", "7")),
-        "max_interval": int(os.getenv("POLL_MAX_INTERVAL", "10")),
-        "db_path": os.getenv("DATABASE_PATH", "./data/locations.db"),
-        "web_host": os.getenv("WEB_HOST", "127.0.0.1"),
-        "web_port": int(os.getenv("WEB_PORT", "5000")),
-    }
+    try:
+        return AppConfig.from_env()
+    except ConfigurationError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 @click.group()
@@ -53,8 +49,8 @@ def main():
 def auth(username, password):
     """Authenticate with iCloud and store the session."""
     config = get_config()
-    username = username or config["username"] or click.prompt("Enter your Apple ID")
-    password = password or config["password"] or click.prompt("Enter your password", hide_input=True)
+    username = username or config.username or click.prompt("Enter your Apple ID")
+    password = password or config.password or click.prompt("Enter your password", hide_input=True)
     click.echo(f"Authenticating as {username}...")
     try:
         handler = ICloudAuth(username, password)
@@ -64,7 +60,9 @@ def auth(username, password):
         click.echo(f"Found {len(devices)} device(s):")
         for device in devices:
             location_status = "Has location" if device.get("location") else "No location"
-            click.echo(f"  - {device['name']} ({device['device_display_name']}) - {location_status}")
+            click.echo(
+                f"  - {device['name']} ({device['device_display_name']}) - {location_status}"
+            )
     except AuthenticationError as exc:
         click.echo(f"Authentication failed: {exc}", err=True)
         sys.exit(1)
@@ -72,23 +70,33 @@ def auth(username, password):
 
 @main.command()
 @click.option("--username", "-u", help="iCloud username (Apple ID)")
-@click.option("--password", "-p", help="iCloud password")
+@click.option("--password", "-p", help="iCloud password", hide_input=True)
 @click.option("--min-interval", type=int, help="Minimum polling interval in minutes")
 @click.option("--max-interval", type=int, help="Maximum polling interval in minutes")
 def poll(username, password, min_interval, max_interval):
     """Start the location polling service."""
     config = get_config()
-    username = username or config["username"]
-    password = password or config["password"]
-    min_interval = min_interval or config["min_interval"]
-    max_interval = max_interval or config["max_interval"]
+    username = username or config.username
+    password = password or config.password
+    min_interval = min_interval if min_interval is not None else config.min_interval
+    max_interval = max_interval if max_interval is not None else config.max_interval
     if not username:
         click.echo("Error: ICLOUD_USERNAME is required", err=True)
         sys.exit(1)
     handler = ICloudAuth(username, password)
-    database = LocationDatabase(config["db_path"])
-    poller = LocationPoller(handler, database, min_interval, max_interval)
-    poller.on_poll(lambda locations: click.echo(f"Recorded {len(locations)} location(s)") if locations else None)
+    database = LocationDatabase(config.db_path)
+    poller = LocationPoller(
+        handler,
+        database,
+        min_interval,
+        max_interval,
+        auth_retry_interval=config.auth_retry_interval,
+    )
+    poller.on_poll(
+        lambda locations: (
+            click.echo(f"Recorded {len(locations)} location(s)") if locations else None
+        )
+    )
     try:
         poller.start()
     except KeyboardInterrupt:
@@ -101,51 +109,64 @@ def poll(username, password, min_interval, max_interval):
 def web(host, port):
     """Start the web interface."""
     config = get_config()
-    database = LocationDatabase(config["db_path"])
-    handler = ICloudAuth(config["username"], config["password"]) if config["username"] else None
-    app = create_app(database, handler)
-    host = host or config["web_host"]
-    port = port or config["web_port"]
+    database = LocationDatabase(config.db_path)
+    identity_store = AppleIdentityStore()
+    if config.username:
+        identity_store.save(config.username)
+    username = config.username or identity_store.load()
+    handler = ICloudAuth(username, config.password) if username else None
+    app = create_app(database, handler, identity_store=identity_store, config=config)
+    host = host or config.web_host
+    port = port if port is not None else config.web_port
     click.echo(f"Starting web server at http://{host}:{port}")
-    app.run(host=host, port=port, debug=False)
+    serve(app, host=host, port=port, threads=4)
 
 
 @main.command()
 @click.option("--username", "-u", help="iCloud username (Apple ID)")
-@click.option("--password", "-p", help="iCloud password")
+@click.option("--password", "-p", help="iCloud password", hide_input=True)
 @click.option("--host", help="Web server host")
 @click.option("--port", type=int, help="Web server port")
 def start(username, password, host, port):
     """Start both the poller and web interface."""
     config = get_config()
-    username = username or config["username"]
-    password = password or config["password"]
-    host = host or config["web_host"]
-    port = port or config["web_port"]
-    if not username:
-        click.echo("Error: ICLOUD_USERNAME is required", err=True)
-        sys.exit(1)
-
-    handler = ICloudAuth(username, password)
-    database = LocationDatabase(config["db_path"])
+    identity_store = AppleIdentityStore()
+    if config.username:
+        identity_store.save(config.username)
+    username = username or config.username or identity_store.load()
+    password = password or config.password
+    host = host or config.web_host
+    port = port if port is not None else config.web_port
+    handler = ICloudAuth(username, password) if username else None
+    database = LocationDatabase(config.db_path)
     poller = LocationPoller(
         auth=handler,
         database=database,
-        min_interval=config["min_interval"],
-        max_interval=config["max_interval"],
+        min_interval=config.min_interval,
+        max_interval=config.max_interval,
+        auth_retry_interval=config.auth_retry_interval,
     )
-    app = create_app(database, handler)
+    app = create_app(
+        database,
+        handler,
+        poller,
+        identity_store=identity_store,
+        config=config,
+    )
 
     click.echo("Starting Find My Timeline")
-    click.echo(f"  Polling interval: {config['min_interval']}-{config['max_interval']} minutes")
+    click.echo(f"  Polling interval: {config.min_interval}-{config.max_interval} minutes")
     click.echo(f"  Web interface: http://{host}:{port}")
-    click.echo(f"  Database: {config['db_path']}")
+    click.echo(f"  Database: {config.db_path}")
+    if not username:
+        click.echo("  Apple ID: complete setup in the WebUI")
 
     Thread(target=poller.start, daemon=True).start()
     try:
-        app.run(host=host, port=port, debug=False, use_reloader=False)
+        serve(app, host=host, port=port, threads=4)
     except KeyboardInterrupt:
         click.echo("\nShutting down...")
+    finally:
         poller.stop()
 
 
@@ -153,7 +174,7 @@ def start(username, password, host, port):
 def stats():
     """Show database statistics."""
     config = get_config()
-    db_path = Path(config["db_path"])
+    db_path = config.db_path
     if not db_path.exists():
         click.echo("No database found. Run 'poll' first.")
         return
@@ -173,7 +194,7 @@ def stats():
 def devices():
     """List all tracked devices."""
     config = get_config()
-    db_path = Path(config["db_path"])
+    db_path = config.db_path
     if not db_path.exists():
         click.echo("No database found. Run 'poll' first.")
         return

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
@@ -22,6 +23,7 @@ class ICloudAuth:
         self._cookie_dir.mkdir(exist_ok=True)
         self._metadata_file = self._cookie_dir / "auth-metadata.json"
         self._lock = RLock()
+        self._web_2sa_device: dict | None = None
 
     def _session_paths(self) -> tuple[Path, Path]:
         username_clean = self.username.replace("@", "").replace(".", "")
@@ -71,17 +73,60 @@ class ICloudAuth:
         with self._lock:
             self.api = self._create_service(password)
             password = None
-            if self.api.requires_2sa:
-                raise AuthenticationError(
-                    "Legacy two-step authentication is not supported in the WebUI. Use the CLI."
-                )
+            if self.api.requires_2sa and not self.api.requires_2fa:
+                devices = self.api.trusted_devices
+                if not devices:
+                    raise AuthenticationError("Apple did not return a trusted verification device")
+                self._web_2sa_device = None
+                return {
+                    "requires_2fa": False,
+                    "requires_2sa": True,
+                    "status": "waiting_for_device",
+                    "trusted_devices": [
+                        {"index": index, "label": f"Trusted device {index + 1}"}
+                        for index in range(len(devices))
+                    ],
+                }
             if self.api.requires_2fa:
                 request_code = getattr(self.api, "request_2fa_code", None)
                 if callable(request_code):
                     request_code()
-                return {"requires_2fa": True, "status": "waiting_for_code"}
+                return {
+                    "requires_2fa": True,
+                    "requires_2sa": False,
+                    "status": "waiting_for_code",
+                }
             self.record_successful_authentication()
-            return {"requires_2fa": False, "status": "authenticated"}
+            return {
+                "requires_2fa": False,
+                "requires_2sa": False,
+                "status": "authenticated",
+            }
+
+    def send_web_2sa_code(self, device_index: int) -> None:
+        """Send a legacy two-step code without exposing trusted-device details."""
+        with self._lock:
+            if not self.api or not self.api.requires_2sa:
+                raise AuthenticationError("No active two-step authentication request")
+            devices = self.api.trusted_devices
+            if device_index < 0 or device_index >= len(devices):
+                raise AuthenticationError("Select a valid trusted device")
+            device = devices[device_index]
+            if not self.api.send_verification_code(device):
+                raise AuthenticationError("Apple could not send the verification code")
+            self._web_2sa_device = device
+
+    def complete_web_2sa(self, code: str) -> None:
+        """Validate a legacy two-step code for the selected trusted device."""
+        if not code or not code.isdigit() or len(code) not in {4, 6, 8}:
+            raise AuthenticationError("Enter the verification code sent to the trusted device")
+        with self._lock:
+            if not self.api or not self.api.requires_2sa or not self._web_2sa_device:
+                raise AuthenticationError("Send a code to a trusted device first")
+            if not self.api.validate_verification_code(self._web_2sa_device, code):
+                raise AuthenticationError("The verification code was rejected")
+            self._web_2sa_device = None
+            self.record_successful_authentication()
 
     def complete_web_2fa(self, code: str) -> None:
         """Validate a 2FA code for a previously started web flow."""
@@ -103,6 +148,7 @@ class ICloudAuth:
         }
         temporary = self._metadata_file.with_suffix(".tmp")
         temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        os.chmod(temporary, 0o600)
         temporary.replace(self._metadata_file)
 
     def authentication_metadata(self, lifetime_days: int = 90) -> dict:
@@ -130,7 +176,9 @@ class ICloudAuth:
                 authenticated_at=authenticated_at.isoformat(),
                 estimated_expires_at=datetime.fromtimestamp(expires_at, timezone.utc).isoformat(),
                 remaining_days=remaining,
-                state="expired" if expires_at <= now else ("warning" if remaining <= 14 else "valid"),
+                state="expired"
+                if expires_at <= now
+                else ("warning" if remaining <= 14 else "valid"),
             )
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
             result["state"] = "session_present" if result["session_files_present"] else "missing"
@@ -147,8 +195,8 @@ class ICloudAuth:
     def _handle_2sa(self) -> None:
         print("Two-step authentication required.")
         devices = self.api.trusted_devices
-        for index, device in enumerate(devices):
-            print(f"  {index}: {device.get('deviceName', f'Device {index}')}" )
+        for index, _device in enumerate(devices):
+            print(f"  {index}: Trusted device {index + 1}")
         device = devices[int(input("Select device: ").strip())]
         if not self.api.send_verification_code(device):
             raise AuthenticationError("Failed to send verification code")
@@ -157,21 +205,24 @@ class ICloudAuth:
             raise AuthenticationError("Invalid verification code")
 
     def get_devices(self) -> list[dict]:
-        if not self.api:
-            raise AuthenticationError("Not authenticated. Call authenticate() first.")
-        devices = []
-        for device in self.api.devices:
-            data = device.data
-            devices.append({
-                "id": data.get("id", "unknown"),
-                "name": data.get("name", "Unknown Device"),
-                "device_display_name": data.get("deviceDisplayName", "Unknown"),
-                "device_class": data.get("deviceClass", "unknown"),
-                "battery_level": data.get("batteryLevel"),
-                "battery_status": data.get("batteryStatus"),
-                "location": device.location,
-            })
-        return devices
+        with self._lock:
+            if not self.api:
+                raise AuthenticationError("Not authenticated. Call authenticate() first.")
+            devices = []
+            for device in self.api.devices:
+                data = device.data
+                devices.append(
+                    {
+                        "id": data.get("id", "unknown"),
+                        "name": data.get("name", "Unknown Device"),
+                        "device_display_name": data.get("deviceDisplayName", "Unknown"),
+                        "device_class": data.get("deviceClass", "unknown"),
+                        "battery_level": data.get("batteryLevel"),
+                        "battery_status": data.get("batteryStatus"),
+                        "location": device.location,
+                    }
+                )
+            return devices
 
 
 class AuthenticationError(Exception):

@@ -1,6 +1,13 @@
 # Find My Timeline for Unraid
 
-Self-hosted Apple Find My location history for Unraid, with an interactive timeline, local SQLite storage, Docker packaging and optional browser-based Apple re-authentication.
+[![CI](https://github.com/heckpiet/find-my-timeline-unraid/actions/workflows/ci.yml/badge.svg)](https://github.com/heckpiet/find-my-timeline-unraid/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/heckpiet/find-my-timeline-unraid)](https://github.com/heckpiet/find-my-timeline-unraid/releases/latest)
+[![Container](https://img.shields.io/badge/GHCR-amd64%20%7C%20arm64-2496ED?logo=docker&logoColor=white)](https://github.com/heckpiet/find-my-timeline-unraid/pkgs/container/find-my-timeline-unraid)
+[![License](https://img.shields.io/github/license/heckpiet/find-my-timeline-unraid)](LICENSE)
+
+Self-hosted Apple Find My location history for Unraid. It records device positions in a local SQLite database and turns them into an interactive route map and chronological timeline.
+
+**Current stable release:** `0.4.5` · **Image:** `ghcr.io/heckpiet/find-my-timeline-unraid:latest`
 
 > Unofficial Unraid-focused fork. This project is not affiliated with or endorsed by Apple or Lime Technology.
 
@@ -8,15 +15,22 @@ Self-hosted Apple Find My location history for Unraid, with an interactive timel
 
 ### Dashboard and route map
 
-![Find My Timeline dashboard](https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview.png)
-
-### Location details
-
-![Find My Timeline location details](https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview2.png)
+![Find My Timeline dashboard with route map](docs/images/unraid-dashboard.png)
 
 ### Chronological timeline
 
-![Find My Timeline device timeline](https://raw.githubusercontent.com/heckpiet/find-my-timeline-unraid/master/preview3.png)
+![Find My Timeline chronological device timeline](docs/images/unraid-timeline.png)
+
+### Guided Apple re-authentication
+
+![Find My Timeline first-run authentication setup](docs/images/authentication-setup.jpg)
+
+### Settings and system status
+
+![Find My Timeline settings and system status](docs/images/unraid-settings.png)
+
+The screenshots use synthetic demonstration devices and locations; no production location history is included in the repository.
+The root-level `preview.png`, `preview2.png` and `preview3.png` copies provide compatibility with the Community Applications media gallery.
 
 ## What this project does
 
@@ -41,12 +55,19 @@ The WebUI provides an interactive map, device selection, exact date and time fil
 - responsive desktop and mobile WebUI
 - device cards, status metrics and exact date/time search
 - Apple session-status card and estimated re-authentication countdown
-- optional browser-based Apple 2FA workflow
+- guided browser-based Apple 2FA and first-run administrator setup
+- credential-free container startup with persistent WebUI Apple ID onboarding
 - separate administrator password for authentication actions
 - masked Apple ID display
+- explicit Apple ID and Apple Account password guidance with Show/Hide password controls
+- guided modern two-factor and legacy two-step verification in the WebUI
 - expiring in-memory authentication flow
+- privacy-safe aggregate polling logs without device names or identifiers
 - security-focused response headers
 - Docker health check
+- self-healing poller with visible operational status
+- dedicated settings view with application version, health, polling and authentication status
+- separate liveness and readiness health checks
 - documented backup, update and reverse-proxy guidance
 
 ## Requirements
@@ -67,22 +88,25 @@ Do not expose the WebUI directly to the public internet. Use a trusted local net
 ## Quick start on Unraid
 
 1. Install **Find My Timeline** through Community Applications.
-2. Enter your Apple ID email address in `ICLOUD_USERNAME`.
-3. Keep both persistent appdata paths enabled.
-4. Choose one of the authentication methods below.
-5. Restart the container after a successful Apple authentication.
-6. Open the WebUI on the configured host port, normally port `5000`.
-7. Confirm that devices appear and the container health status becomes `healthy`.
+2. Keep both persistent appdata paths enabled.
+3. Open the WebUI on the configured host port, normally port `5000`.
+4. Complete the recommended WebUI setup below.
+5. Confirm that the poller resumes and devices appear.
+6. Confirm that the container health status becomes `healthy`.
 
 ### Recommended WebUI authentication
 
-1. Set `WEB_AUTH_ENABLED=true`.
-2. Set a long and unique `WEB_ADMIN_PASSWORD`.
-3. Start the container and open the WebUI.
-4. Select **Re-authenticate**.
-5. Enter the WebUI administrator password and Apple ID password.
-6. Enter the verification code shown on a trusted Apple device.
-7. Confirm that the WebUI reports a successful session renewal.
+1. Start the container and open the WebUI.
+2. Select **Set up & re-authenticate**.
+3. Enter the Apple ID email address.
+4. Create and confirm a long, unique WebUI administrator password.
+5. Enter the password belonging to the displayed Apple ID. This is your Apple Account password, not the WebUI administrator password. Use **Show** if you need to verify an entry before continuing.
+6. For modern two-factor authentication, enter the code shown on a trusted Apple device. For legacy two-step verification, first select a generically labelled trusted device, send the code, and then enter it in the WebUI.
+7. Confirm that the WebUI reports a successful session renewal and the poller resumes.
+
+The Apple ID address is persisted in `/root/.find-my-timeline/apple-identity.json` only after successful authentication, so it survives container updates without appearing in the container environment. The administrator password is persisted as a salted PBKDF2 hash in `/root/.find-my-timeline/web-admin.json`; the plaintext password is never stored. Passwords shorter than 12 characters are accepted only after two explicit warnings and remain strongly discouraged. Existing installations using `ICLOUD_USERNAME` or `WEB_ADMIN_PASSWORD` remain supported.
+
+When upgrading an existing installation, v0.4.0 copies a legacy `ICLOUD_USERNAME` value into the persistent identity file. After one successful v0.4.0 start, remove the old Apple ID and Apple password variables from the Unraid container configuration so future starts use only WebUI onboarding and the protected session mapping.
 
 ### CLI authentication fallback
 
@@ -116,7 +140,7 @@ ghcr.io/heckpiet/find-my-timeline-unraid:latest
 Pinned stable image:
 
 ```text
-ghcr.io/heckpiet/find-my-timeline-unraid:0.2.0
+ghcr.io/heckpiet/find-my-timeline-unraid:0.4.5
 ```
 
 ### Required persistent paths
@@ -132,32 +156,44 @@ Back up both directories. The database contains movement history and the session
 
 The WebUI displays the current authentication state and an estimated remaining session lifetime. The default estimate is 90 days, but Apple may invalidate a session earlier. A successful device poll is more authoritative than the countdown.
 
-The Apple ID password and verification code entered through the WebUI are held only for the active authentication flow. They are not written to SQLite or the authentication metadata file. Apple session cookies remain stored in `/root/.find-my-timeline`.
+The Apple ID password and verification code entered through the WebUI are held only for the active authentication flow. They are not written to SQLite, identity metadata or authentication metadata. Apple session cookies and the non-secret Apple ID address remain stored in `/root/.find-my-timeline`.
 
-Legacy Apple two-step authentication remains available through the CLI only.
+Legacy Apple two-step verification is supported through the WebUI. Trusted-device names and phone details are intentionally replaced with generic labels such as **Trusted device 1**.
 
 ## Configuration
 
 | Variable | Default | Description |
 |---|---:|---|
-| `ICLOUD_USERNAME` | — | Apple ID email address whose devices should be recorded |
-| `ICLOUD_PASSWORD` | unset | Optional persistent password; leaving it unset reduces stored secrets |
+| `ICLOUD_USERNAME` | unset | Legacy optional Apple ID override; WebUI setup is recommended |
+| `ICLOUD_PASSWORD` | unset | Legacy CLI override; WebUI entry is recommended because it is not persisted |
 | `POLL_MIN_INTERVAL` | `7` | Minimum interval between Apple location requests in minutes |
 | `POLL_MAX_INTERVAL` | `10` | Maximum interval between Apple location requests in minutes |
+| `AUTH_RETRY_INTERVAL_MINUTES` | `5` | Retry delay after Apple authentication or polling failures |
 | `DATABASE_PATH` | `/app/data/locations.db` | SQLite database path |
 | `WEB_HOST` | `0.0.0.0` | Web server binding inside the container |
 | `WEB_PORT` | `5000` | Internal WebUI port |
-| `WEB_AUTH_ENABLED` | `false` | Enables browser-based Apple re-authentication |
-| `WEB_ADMIN_PASSWORD` | unset | Protects browser authentication actions, not the map or APIs |
+| `WEB_AUTH_DISABLED` | `false` | Explicitly disables browser-based Apple re-authentication |
+| `WEB_ADMIN_PASSWORD` | unset | Optional environment-managed administrator password; otherwise use first-run setup |
 | `AUTH_SESSION_LIFETIME_DAYS` | `90` | Estimated Apple session lifetime used by the countdown |
 | `WEB_AUTH_FLOW_TIMEOUT_SECONDS` | `600` | Maximum time between starting authentication and entering the verification code |
 | `TZ` | `Europe/Berlin` | Container timezone in the Unraid template |
 
 The minimum polling interval must not be greater than the maximum polling interval.
 
+## Poller and health status
+
+The dashboard reports whether the background poller is running, authenticating or waiting for authentication, together with the last successful poll. A failed Apple login no longer terminates the poller permanently. It retries after `AUTH_RETRY_INTERVAL_MINUTES`, and a successful WebUI re-authentication wakes it immediately.
+
+The container exposes two lightweight health endpoints:
+
+- `GET /health/live` confirms that the web process is responding.
+- `GET /health/ready` confirms that SQLite is available.
+
+`GET /api/system/status` provides the database and poller state without returning device locations.
+
 ## Security model
 
-`WEB_ADMIN_PASSWORD` protects only the endpoints that start and complete Apple authentication. It does not protect the location map, device list or location-history APIs.
+The configured or first-run administrator password protects only the endpoints that start and complete Apple authentication. It does not protect the location map, device list or location-history APIs.
 
 Recommended deployment controls:
 
@@ -205,9 +241,6 @@ docker run -d \
   --name find-my-timeline \
   --restart unless-stopped \
   -p 5000:5000 \
-  -e ICLOUD_USERNAME=your-apple-id@example.com \
-  -e WEB_AUTH_ENABLED=true \
-  -e WEB_ADMIN_PASSWORD='replace-with-a-long-random-password' \
   -e POLL_MIN_INTERVAL=7 \
   -e POLL_MAX_INTERVAL=10 \
   -v "$(pwd)/data:/app/data" \
@@ -245,18 +278,17 @@ http://your-server:5000
 
 ### The countdown still shows time remaining, but polling fails
 
-The countdown is an estimate based on the last successful authentication. Apple can invalidate sessions earlier. Start a new authentication flow from the WebUI or use the CLI fallback.
+The countdown is an estimate based on the last successful authentication. Apple can invalidate sessions earlier. Check the dashboard poller status. Start a new authentication flow from the WebUI or use the CLI fallback; after successful WebUI authentication the poller retries immediately.
 
 ### Web authentication is unavailable
 
 Confirm that:
 
 ```env
-WEB_AUTH_ENABLED=true
-WEB_ADMIN_PASSWORD=your-long-random-password
+WEB_AUTH_DISABLED=false
 ```
 
-Then restart the container.
+Then restart the container. If no administrator password exists yet, the button reads **Set up & re-authenticate** and creates it during the successful Apple authentication flow.
 
 ### Authentication flow expired
 
@@ -268,7 +300,11 @@ Check the container logs and verify that the WebUI is listening on port `5000`. 
 
 ## Validation status
 
-Version 0.2.0 was successfully tested on Unraid OS 7.3.2 with:
+The current `0.4.5` release is verified by the release pipeline before publication. CI covers repository privacy scanning, Python 3.10, 3.11 and 3.12, linting and formatting, tests with a 70% coverage threshold, built-wheel installation, the Unraid XML template, CodeQL analysis, and a credential-free rendered-WebUI container smoke test. Release builds publish one immutable multi-architecture image for `linux/amd64` and `linux/arm64`.
+
+The optional, manually approved Unraid runner workflow uses temporary data and never mounts production appdata. The original end-to-end Unraid validation was performed on Unraid OS 7.3.2.
+
+The 0.2.0 validation covered:
 
 - public GHCR image pull
 - installation through the Unraid Docker template
@@ -281,6 +317,18 @@ Version 0.2.0 was successfully tested on Unraid OS 7.3.2 with:
 - Docker health check
 
 More details are available in [`docs/UNRAID_VALIDATION.md`](docs/UNRAID_VALIDATION.md).
+
+## Development and CI
+
+Create a virtual environment and run the same core checks used by CI:
+
+```bash
+python -m pip install -e '.[test]'
+ruff check .
+pytest
+```
+
+Pull requests run the privacy scan, Python test matrix, linting and formatting, package installation, CodeQL, template validation and a rendered-WebUI container smoke test. A version tag such as `v0.4.5` triggers the release pipeline, which verifies that the tag matches `pyproject.toml`, publishes the GHCR image and creates the GitHub release. Dependabot proposes grouped weekly dependency updates. See [`SECURITY.md`](SECURITY.md) for private reporting and [`RELEASING.md`](RELEASING.md) for the complete maintainer workflow.
 
 ## Support and contributions
 

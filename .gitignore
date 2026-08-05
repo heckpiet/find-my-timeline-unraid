@@ -10,6 +10,7 @@ session/
 
 # Python
 __pycache__/
+.coverage
 *.py[cod]
 *$py.class
 *.so
