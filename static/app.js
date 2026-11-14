@@ -248,9 +248,9 @@
     $("metric-devices").textContent = fmtNumber(stats.total_devices);
     $("metric-locations").textContent = fmtNumber(stats.total_locations);
     const latest = stats.devices
-      .map((d) => d.last_seen)
+      .map((d) => d.latest_location?.timestamp)
       .filter(Boolean)
-      .sort()
+      .sort((a, b) => new Date(a) - new Date(b))
       .at(-1);
     $("metric-latest").textContent = latest ? fmtRelative(latest) : "—";
     $("last-refresh").textContent = new Date().toLocaleTimeString([], {

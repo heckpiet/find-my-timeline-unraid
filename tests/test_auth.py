@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 from find_my_timeline.auth import AuthenticationError, ICloudAuth
@@ -106,3 +108,44 @@ def test_web_modern_two_factor_takes_priority_over_requires_2sa(monkeypatch, tmp
         "status": "waiting_for_code",
     }
     assert api.request_count == 1
+
+
+class CachedFindMyDevices:
+    def __init__(self):
+        self.refresh_calls = []
+        self.location = {"latitude": 1.0, "longitude": 2.0, "timeStamp": 1000}
+
+    def refresh(self, locate=True):
+        self.refresh_calls.append(locate)
+        self.location = {**self.location, "timeStamp": self.location["timeStamp"] + 1000}
+
+    def __iter__(self):
+        return iter([SimpleNamespace(data={"id": "demo-device"}, location=self.location)])
+
+
+def test_get_devices_requests_new_locations_on_every_poll(monkeypatch, tmp_path):
+    monkeypatch.setattr("find_my_timeline.auth.Path.home", lambda: tmp_path)
+    auth = ICloudAuth("demo@example.com")
+    manager = CachedFindMyDevices()
+    auth.api = SimpleNamespace(devices=manager)
+
+    first = auth.get_devices()
+    second = auth.get_devices()
+
+    assert manager.refresh_calls == [True, True]
+    assert first[0]["location"]["timeStamp"] == 2000
+    assert second[0]["location"]["timeStamp"] == 3000
+
+
+def test_get_devices_does_not_hide_refresh_failure(monkeypatch, tmp_path):
+    monkeypatch.setattr("find_my_timeline.auth.Path.home", lambda: tmp_path)
+    auth = ICloudAuth("demo@example.com")
+    manager = CachedFindMyDevices()
+    auth.api = SimpleNamespace(devices=manager)
+
+    def fail_refresh(locate=True):
+        raise RuntimeError("Refresh unavailable")
+
+    monkeypatch.setattr(manager, "refresh", fail_refresh)
+    with pytest.raises(RuntimeError, match="Refresh unavailable"):
+        auth.get_devices()
