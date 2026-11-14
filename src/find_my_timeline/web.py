@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hmac
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import RLock
 
@@ -293,11 +293,15 @@ def create_app(
             return jsonify({"error": "limit must be between 1 and 5000"}), 400
         if hours is not None and hours < 1:
             return jsonify({"error": "hours must be greater than zero"}), 400
-        start_time = datetime.now() - timedelta(hours=hours) if hours else None
+        start_time = datetime.now(timezone.utc) - timedelta(hours=hours) if hours else None
         try:
             if start and not hours:
-                start_time = datetime.fromisoformat(start)
-            end_time = datetime.fromisoformat(end) if end else None
+                start_time = datetime.fromisoformat(start.replace("Z", "+00:00"))
+            end_time = datetime.fromisoformat(end.replace("Z", "+00:00")) if end else None
+            if start_time and start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=timezone.utc)
+            if end_time and end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=timezone.utc)
         except ValueError:
             return jsonify({"error": "start and end must be ISO 8601 date-time values"}), 400
         if start_time and end_time and start_time > end_time:

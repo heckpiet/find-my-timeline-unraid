@@ -628,6 +628,9 @@ input:focus-visible {
   background: var(--panel);
   box-shadow: var(--shadow);
 }
+.map-card {
+  isolation: isolate;
+}
 #map {
   height: 100%;
   width: 100%;
@@ -848,6 +851,7 @@ input:focus-visible {
     display: block;
   }
   .sidebar {
+    z-index: 1200;
     position: fixed;
     left: 0;
     top: 0;
@@ -861,7 +865,7 @@ input:focus-visible {
   .sidebar-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 20;
+    z-index: 1100;
     background: rgba(0, 0, 0, 0.58);
   }
   .sidebar-backdrop.visible {

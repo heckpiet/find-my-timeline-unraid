@@ -155,11 +155,11 @@ class LocationDatabase:
 
         if start_time:
             query += " AND timestamp >= ?"
-            params.append(start_time)
+            params.append(self._timestamp_value(start_time))
 
         if end_time:
             query += " AND timestamp <= ?"
-            params.append(end_time)
+            params.append(self._timestamp_value(end_time))
 
         query += " ORDER BY timestamp DESC"
 

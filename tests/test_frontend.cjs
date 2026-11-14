@@ -61,3 +61,16 @@ test("All removes the hours restriction from the location request", async () => 
   await new Promise(setImmediate);
   assert.equal(urls.at(-1), "/api/locations?limit=5000");
 });
+
+
+test("custom local date inputs are sent as UTC instants", async () => {
+  const { element, urls } = await dashboard([]);
+  element("start-time").value = "2026-08-03T09:00";
+  element("end-time").value = "2026-08-03T12:00";
+  element("apply-range").listeners.click();
+  await new Promise(setImmediate);
+  const params = new URL(urls.at(-1), "http://localhost").searchParams;
+  assert.equal(params.get("start"), new Date("2026-08-03T09:00").toISOString());
+  assert.equal(params.get("end"), new Date("2026-08-03T12:00").toISOString());
+  assert.equal(params.has("hours"), false);
+});

@@ -339,9 +339,9 @@
   function buildLocationUrl() {
     const params = new URLSearchParams({ limit: "5000" });
     if (state.selectedDevice) params.set("device_id", state.selectedDevice);
-    if (state.start) params.set("start", state.start);
+    if (state.start) params.set("start", new Date(state.start).toISOString());
     else if (state.hours) params.set("hours", String(state.hours));
-    if (state.end) params.set("end", state.end);
+    if (state.end) params.set("end", new Date(state.end).toISOString());
     return `/api/locations?${params}`;
   }
 
