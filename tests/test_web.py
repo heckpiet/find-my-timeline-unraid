@@ -322,3 +322,30 @@ def test_weak_admin_password_requires_two_explicit_confirmations(tmp_path, monke
     payload["confirm_weak_password_warning"] = True
     accepted = client.post("/api/auth/start", json=payload)
     assert accepted.status_code == 200
+
+
+def test_last_24_hours_uses_utc_cutoff(tmp_path, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            now = datetime(2026, 8, 4, 12, tzinfo=timezone.utc)
+            return now.astimezone(tz) if tz else (now - timedelta(hours=3)).replace(tzinfo=None)
+
+    monkeypatch.setattr("find_my_timeline.web.datetime", Clock)
+    client, _ = make_client(tmp_path, monkeypatch)
+    database = LocationDatabase(tmp_path / "locations.db")
+    database.upsert_device("phone", "Demo phone")
+    for hour in (10, 14):
+        database.record_location("phone", 1, 2, datetime(2026, 8, 3, hour, tzinfo=timezone.utc))
+
+    rows = client.get("/api/locations?hours=24").get_json()
+
+    assert [row["timestamp"] for row in rows] == ["2026-08-03T14:00:00+00:00"]
+
+
+def test_mixed_offset_and_naive_bounds_are_compared_safely(tmp_path, monkeypatch):
+    client, _ = make_client(tmp_path, monkeypatch)
+    response = client.get("/api/locations?start=2026-08-03T12:00:00Z&end=2026-08-03T14:00:00")
+    assert response.status_code == 200

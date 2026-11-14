@@ -45,6 +45,8 @@ This makes it possible to review questions such as:
 
 The WebUI provides an interactive map, device selection, exact date and time filters, route lines, individual location points and a chronological timeline.
 
+Relative ranges use elapsed time in UTC, independently of the container timezone. Exact date inputs use your browser's local timezone and are sent as UTC instants. API `start` and `end` values accept ISO 8601 offsets or `Z`; values without an offset are interpreted as UTC.
+
 ## Main features
 
 - Unraid Community Applications template

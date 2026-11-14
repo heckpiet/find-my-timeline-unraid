@@ -209,7 +209,9 @@ class ICloudAuth:
             if not self.api:
                 raise AuthenticationError("Not authenticated. Call authenticate() first.")
             devices = []
-            for device in self.api.devices:
+            manager = self.api.devices
+            manager.refresh(locate=True)
+            for device in manager:
                 data = device.data
                 devices.append(
                     {
